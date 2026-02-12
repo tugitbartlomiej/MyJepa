@@ -1708,6 +1708,102 @@ Przy $12$ blokach: $12 \times 1.18\text{M} \approx 14.2\text{M}$
 
 \end{tcolorbox}
 
+% --- LAYERNORM (przed pierwszym użyciem w równaniu rezydualnym) ---
+\begin{tcolorbox}[colback=gray!5, colframe=gray!60!black, title=\textbf{Co to jest LayerNorm?}]
+
+Zanim pokażemy pełne równanie bloku Transformera, musimy wyjaśnić operację
+$\text{LayerNorm}$, która pojawia się w nim dwukrotnie.
+
+\textbf{Problem}: po wielu warstwach wartości w wektorze $\mathbf{h}$ mogą stać się bardzo duże
+(np.\ rzędu tysięcy) lub bardzo małe (rzędu $10^{-6}$). To destabilizuje trening ---
+softmax i GELU działają dobrze tylko dla wartości w ``rozsądnym'' zakresie.
+
+\textbf{Rozwiązanie}: LayerNorm \textbf{normalizuje} wektor do średniej $\approx 0$
+i wariancji $\approx 1$ przed każdą operacją.
+
+\subsubsection*{Wzór krok po kroku}
+
+Dany wektor $\mathbf{h} = (h_1, h_2, \ldots, h_d) \in \mathbb{R}^d$ (w ViT-Small $d = 384$):
+
+\textbf{Krok 1 --- Średnia} (centrowanie):
+\[
+\mu = \frac{1}{d}\sum_{i=1}^{d} h_i
+\]
+
+\textbf{Krok 2 --- Wariancja} (jak bardzo wartości ``rozbiegają się'' od średniej):
+\[
+\sigma^2 = \frac{1}{d}\sum_{i=1}^{d} (h_i - \mu)^2
+\]
+
+\textbf{Krok 3 --- Normalizacja} (centruj + podziel przez odchylenie):
+\[
+\hat{h}_i = \frac{h_i - \mu}{\sqrt{\sigma^2 + \epsilon}}
+\]
+
+$\epsilon = 10^{-5}$ to mała stała zapobiegająca dzieleniu przez zero
+(gdyby $\sigma^2 = 0$, czyli wszystkie $h_i$ były identyczne).
+
+\textbf{Krok 4 --- Skalowanie i przesunięcie} (uczone parametry):
+\begin{equation}
+\text{LayerNorm}(\mathbf{h})_i = \gamma_i \cdot \hat{h}_i + \beta_i
+\end{equation}
+
+Parametry $\gamma_i, \beta_i$ (po jednym na każdy wymiar) są \textbf{uczone} ---
+sieć sama decyduje, jaka skala i przesunięcie są optymalne.
+
+\subsubsection*{Przykład liczbowy}
+
+Niech $\mathbf{h} = (2.0, \; 4.0, \; 6.0, \; 8.0)$ (uproszczenie --- $d = 4$ zamiast 384):
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{ll}
+\toprule
+\textbf{Krok} & \textbf{Obliczenie} \\
+\midrule
+Średnia $\mu$ & $\frac{2+4+6+8}{4} = 5.0$ \\[4pt]
+Wariancja $\sigma^2$ & $\frac{(2{-}5)^2 + (4{-}5)^2 + (6{-}5)^2 + (8{-}5)^2}{4} = \frac{9+1+1+9}{4} = 5.0$ \\[4pt]
+Odchylenie $\sqrt{\sigma^2}$ & $\sqrt{5.0} \approx 2.236$ \\[4pt]
+$\hat{h}_1 = \frac{2.0 - 5.0}{2.236}$ & $= -1.34$ \\[2pt]
+$\hat{h}_2 = \frac{4.0 - 5.0}{2.236}$ & $= -0.45$ \\[2pt]
+$\hat{h}_3 = \frac{6.0 - 5.0}{2.236}$ & $= +0.45$ \\[2pt]
+$\hat{h}_4 = \frac{8.0 - 5.0}{2.236}$ & $= +1.34$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Wynik}: $(2, 4, 6, 8) \to (-1.34, \; -0.45, \; +0.45, \; +1.34)$
+
+Sprawdzenie: średnia $\approx 0$ \checkmark, \; wariancja $\approx 1$ \checkmark
+
+Potem $\gamma$ i $\beta$ mogą przeskalować wynik, np.\ przy $\gamma_i = 2, \beta_i = 0.5$:
+\[
+\text{LayerNorm}(\mathbf{h})_1 = 2 \times (-1.34) + 0.5 = -2.18
+\]
+
+\subsubsection*{Dlaczego LayerNorm a nie BatchNorm?}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{lcc}
+\toprule
+& \textbf{BatchNorm} & \textbf{LayerNorm} \\
+\midrule
+Normalizuje po & próbkach w batchu & wymiarach jednego tokenu \\
+Zależy od batch size? & tak & \textbf{nie} \\
+Działa przy batch=1? & źle & \textbf{dobrze} \\
+Standard w Transformerach? & nie & \textbf{tak} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+LayerNorm normalizuje \textbf{wewnątrz jednego tokenu} (po 384 wymiarach),
+niezależnie od tego, ile próbek jest w batchu.
+Dzięki temu wynik jest \textbf{deterministyczny} --- ten sam obraz zawsze
+daje ten sam wynik, niezależnie od reszty batcha.
+
+\end{tcolorbox}
+
 \subsubsection*{Pełny blok z residualami i normalizacją}
 
 Każdy z 12 bloków Transformera wykonuje dwie operacje --- Self-Attention i MLP ---
@@ -1846,100 +1942,6 @@ $\mathbf{h}^{(0)}$ & $\xrightarrow{\text{autostrada}}$ & $\mathbf{h}^{(1)}$
 
 \textbf{Bez residuali}: każda stacja to \textbf{bramka} --- sygnał musi przejść przez każdą.
 Jeśli jedna bramka blokuje, wszystko staje.
-\end{tcolorbox}
-
-% --- LAYERNORM ---
-\begin{tcolorbox}[colback=gray!5, colframe=gray!60!black, title=\textbf{Co robi LayerNorm?}]
-
-W równaniu widzimy, że przed Attention i MLP stosujemy $\text{LayerNorm}(\mathbf{h})$.
-\textbf{Problem}: po wielu warstwach wartości w wektorze $\mathbf{h}$ mogą stać się bardzo duże
-(np.\ rzędu tysięcy) lub bardzo małe (rzędu $10^{-6}$). To destabilizuje trening ---
-softmax i GELU działają dobrze tylko dla wartości w ``rozsądnym'' zakresie.
-
-\textbf{Rozwiązanie}: LayerNorm \textbf{normalizuje} wektor do średniej $\approx 0$
-i wariancji $\approx 1$ przed każdą operacją.
-
-\subsubsection*{Wzór krok po kroku}
-
-Dany wektor $\mathbf{h} = (h_1, h_2, \ldots, h_d) \in \mathbb{R}^d$ (w ViT-Small $d = 384$):
-
-\textbf{Krok 1 --- Średnia} (centrowanie):
-\[
-\mu = \frac{1}{d}\sum_{i=1}^{d} h_i
-\]
-
-\textbf{Krok 2 --- Wariancja} (jak bardzo wartości ``rozbiegają się'' od średniej):
-\[
-\sigma^2 = \frac{1}{d}\sum_{i=1}^{d} (h_i - \mu)^2
-\]
-
-\textbf{Krok 3 --- Normalizacja} (centruj + podziel przez odchylenie):
-\[
-\hat{h}_i = \frac{h_i - \mu}{\sqrt{\sigma^2 + \epsilon}}
-\]
-
-$\epsilon = 10^{-5}$ to mała stała zapobiegająca dzieleniu przez zero
-(gdyby $\sigma^2 = 0$, czyli wszystkie $h_i$ były identyczne).
-
-\textbf{Krok 4 --- Skalowanie i przesunięcie} (uczone parametry):
-\begin{equation}
-\text{LayerNorm}(\mathbf{h})_i = \gamma_i \cdot \hat{h}_i + \beta_i
-\end{equation}
-
-Parametry $\gamma_i, \beta_i$ (po jednym na każdy wymiar) są \textbf{uczone} ---
-sieć sama decyduje, jaka skala i przesunięcie są optymalne.
-
-\subsubsection*{Przykład liczbowy}
-
-Niech $\mathbf{h} = (2.0, \; 4.0, \; 6.0, \; 8.0)$ (uproszczenie --- $d = 4$ zamiast 384):
-
-\begin{center}
-\renewcommand{\arraystretch}{1.4}
-\begin{tabular}{ll}
-\toprule
-\textbf{Krok} & \textbf{Obliczenie} \\
-\midrule
-Średnia $\mu$ & $\frac{2+4+6+8}{4} = 5.0$ \\[4pt]
-Wariancja $\sigma^2$ & $\frac{(2{-}5)^2 + (4{-}5)^2 + (6{-}5)^2 + (8{-}5)^2}{4} = \frac{9+1+1+9}{4} = 5.0$ \\[4pt]
-Odchylenie $\sqrt{\sigma^2}$ & $\sqrt{5.0} \approx 2.236$ \\[4pt]
-$\hat{h}_1 = \frac{2.0 - 5.0}{2.236}$ & $= -1.34$ \\[2pt]
-$\hat{h}_2 = \frac{4.0 - 5.0}{2.236}$ & $= -0.45$ \\[2pt]
-$\hat{h}_3 = \frac{6.0 - 5.0}{2.236}$ & $= +0.45$ \\[2pt]
-$\hat{h}_4 = \frac{8.0 - 5.0}{2.236}$ & $= +1.34$ \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-\textbf{Wynik}: $(2, 4, 6, 8) \to (-1.34, \; -0.45, \; +0.45, \; +1.34)$
-
-Sprawdzenie: średnia $\approx 0$ \checkmark, \; wariancja $\approx 1$ \checkmark
-
-Potem $\gamma$ i $\beta$ mogą przeskalować wynik, np.\ przy $\gamma_i = 2, \beta_i = 0.5$:
-\[
-\text{LayerNorm}(\mathbf{h})_1 = 2 \times (-1.34) + 0.5 = -2.18
-\]
-
-\subsubsection*{Dlaczego LayerNorm a nie BatchNorm?}
-
-\begin{center}
-\renewcommand{\arraystretch}{1.3}
-\begin{tabular}{lcc}
-\toprule
-& \textbf{BatchNorm} & \textbf{LayerNorm} \\
-\midrule
-Normalizuje po & próbkach w batchu & wymiarach jednego tokenu \\
-Zależy od batch size? & tak & \textbf{nie} \\
-Działa przy batch=1? & źle & \textbf{dobrze} \\
-Standard w Transformerach? & nie & \textbf{tak} \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-LayerNorm normalizuje \textbf{wewnątrz jednego tokenu} (po 384 wymiarach),
-niezależnie od tego, ile próbek jest w batchu.
-Dzięki temu wynik jest \textbf{deterministyczny} --- ten sam obraz zawsze
-daje ten sam wynik, niezależnie od reszty batcha.
-
 \end{tcolorbox}
 
 % --- PODSUMOWANIE PEŁNEGO BLOKU ---

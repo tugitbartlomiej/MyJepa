@@ -8,5 +8,7 @@
 *.out
 *.toc
 *.synctex.gz
+*.fls
+*.fdb_latexmk
 
 # Zachowaj .tex, .py, .bat, .md
