@@ -1,0 +1,12 @@
+# Wygenerowane pliki binarne (PDF, PNG)
+*.pdf
+*.png
+
+# Pliki tymczasowe LaTeX
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+
+# Zachowaj .tex, .py, .bat, .md

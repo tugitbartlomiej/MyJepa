@@ -1,0 +1,2938 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[polish]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{placeins}  % for \FloatBarrier
+
+% Theorem environments
+\theoremstyle{definition}
+\newtheorem{definition}{Definicja}[section]
+\newtheorem{theorem}{Twierdzenie}[section]
+\newtheorem{lemma}{Lemat}[section]
+\newtheorem{remark}{Uwaga}[section]
+
+% Custom colors
+\definecolor{lejepaBlue}{RGB}{33,150,243}
+\definecolor{lejepaRed}{RGB}{211,47,47}
+\definecolor{lejepaGreen}{RGB}{76,175,80}
+
+% tcolorbox styles
+\tcbuselibrary{theorems,skins,breakable}
+
+\newtcolorbox{keyinsight}[1][]{
+  colback=lejepaBlue!8,
+  colframe=lejepaBlue!80,
+  fonttitle=\bfseries,
+  title={#1},
+  breakable,
+  sharp corners=south,
+}
+
+\newtcolorbox{warningbox}[1][]{
+  colback=lejepaRed!8,
+  colframe=lejepaRed!80,
+  fonttitle=\bfseries,
+  title={#1},
+  breakable,
+}
+
+\title{%
+  \textbf{Dlaczego izotropowy rozkład Gaussa jest optymalny\\
+  dla embeddingów w LeJEPA?}\\[0.5em]
+  \large Teoria i intuicja z artykułu Balestriero \& LeCun (2025)
+}
+\author{Notatki do artykułu \textit{LeJEPA: Provable and Scalable SSL Without the Heuristics}}
+\date{\today}
+
+\setlength{\textfloatsep}{10pt plus 2pt minus 4pt}     % odstęp tekst-figura (góra/dół)
+\setlength{\floatsep}{8pt plus 2pt minus 4pt}         % odstęp między figurami
+\setlength{\intextsep}{8pt plus 2pt minus 4pt}        % odstęp dla figur [h]
+\renewcommand{\topfraction}{0.9}       % max 90% strony na figury u góry
+\renewcommand{\bottomfraction}{0.9}    % max 90% strony na figury u dołu
+\renewcommand{\textfraction}{0.1}      % min 10% strony na tekst
+\renewcommand{\floatpagefraction}{0.7} % min 70% wypełnienia strony z samymi figurami
+
+\begin{document}
+\raggedbottom  % nie rozciągaj pustych przestrzeni na stronach
+\maketitle
+
+\begin{abstract}
+Ten dokument wyjaśnia kluczowy wynik teoretyczny artykułu LeJEPA:
+\textbf{izotropowy rozkład Gaussa} $\mathcal{N}(\mathbf{0}, \mathbf{I})$
+jest \textbf{jedynym optymalnym rozkładem} embeddingów, który minimalizuje
+ryzyko downstream dla \textit{dowolnego} zadania klasyfikacji/regresji.
+Przedstawiamy dowody dla linear probe i nieliniowych metod (k-NN, kernel),
+intuicję geometryczną oraz wizualizacje.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+%% ============================================================
+\section{Ogólny obraz: co budujemy i po co?}
+\label{sec:big_picture}
+%% ============================================================
+
+Zanim wejdziemy w matematykę, ustalmy \textbf{co jest czym}.
+W tym projekcie mamy do czynienia z trzema rzeczami, które łatwo pomylić:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.8}
+\begin{tabular}{cp{10cm}}
+\toprule
+\textbf{Nazwa} & \textbf{Czym jest?} \\
+\midrule
+\textbf{ViT} \newline (Vision Transformer) &
+\textbf{Sieć neuronowa} --- architektura encodera.
+Zwykła maszyna: obraz wchodzi, wektor liczb (embedding) wychodzi.
+ViT sam z siebie \textit{nie wie}, czego się uczyć --- potrzebuje metody treningu. \\
+\textbf{LeJEPA} \newline (metoda treningu) &
+\textbf{Przepis na trening} ViT-a bez etykiet (self-supervised).
+Mówi: ``podaj sieci dwa widoki tego samego kadru, policz taki-a-taki loss,
+zaktualizuj wagi''. LeJEPA \textit{nie jest} siecią neuronową --- to algorytm,
+który \textit{używa} ViT-a jako swojego encodera. \\
+\textbf{SIGReg} \newline (regularyzator) &
+\textbf{Składnik lossu} wewnątrz LeJEPA.
+Wymusza, żeby embeddingi miały rozkład $\mathcal{N}(\mathbf{0}, \mathbf{I})$
+(izotropowy Gauss --- temu poświęcony jest cały ten dokument). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Jak to się łączy? Schemat}
+
+Cały system wygląda tak:
+
+\begin{center}
+\fbox{\parbox{0.92\textwidth}{
+\centering
+\textbf{PRETRAINING (uczenie bez etykiet)} \\[0.8em]
+\begin{tabular}{ccccc}
+Ramka wideo & $\xrightarrow{\text{augmentacje}}$ & Dwa widoki &
+$\xrightarrow{\quad\text{ViT}\quad}$ & Embeddingi \\
+$\mathbf{x}$ & & $\mathbf{x}', \mathbf{x}''$ & & $\mathbf{z}', \mathbf{z}'' \in \mathbb{R}^{384}$
+\end{tabular}
+\\[0.8em]
+$\downarrow$ \\[0.3em]
+\textbf{Loss LeJEPA} = $\lambda \cdot \underbrace{\text{SIGReg}(\mathbf{z})}_{\text{wymusza } \mathcal{N}(\mathbf{0}, \mathbf{I})}
++ (1 - \lambda) \cdot \underbrace{\text{prediction loss}}_{\text{podobne widoki} \to \text{podobne embeddingi}}$
+\\[0.5em]
+$\downarrow$ \\[0.3em]
+Gradient descent aktualizuje wagi $\theta$ ViT-a
+}}
+\end{center}
+
+\bigskip
+
+\begin{center}
+\fbox{\parbox{0.92\textwidth}{
+\centering
+\textbf{DOWNSTREAM (użycie po treningu)} \\[0.8em]
+\begin{tabular}{ccccc}
+Nowy obraz & $\xrightarrow{\quad\text{ViT (zamrożony)}\quad}$ & Embedding &
+$\xrightarrow{\text{mały klasyfikator}}$ & Wynik \\
+$\mathbf{x}$ & & $\mathbf{z} \in \mathbb{R}^{384}$ & & ``faza phaco''
+\end{tabular}
+\\[0.5em]
+Wagi $\theta$ \textbf{nie zmieniają się} --- ViT działa jak zamrożona ``czarna skrzynka''.\\
+Uczymy \textit{tylko} mały klasyfikator (linear probe / k-NN).
+}}
+\end{center}
+
+\subsection{Analogia}
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{ViT} = \textbf{uczeń} (sieć neuronowa z wagami $\theta$).
+  \item \textbf{LeJEPA} = \textbf{program nauczania w szkole}
+        --- mówi uczniowi \textit{jak} się uczyć (jakie ćwiczenia robić, jak oceniać postępy).
+  \item \textbf{SIGReg} = \textbf{jedno z ćwiczeń} w programie
+        --- ``upewnij się, że twoje notatki (embeddingi) są równomiernie rozłożone''.
+  \item \textbf{Downstream} = \textbf{praca po szkole}
+        --- uczeń (ViT) stosuje swoją wiedzę (zamrożone $\theta^*$) do nowych zadań.
+        Program nauczania (LeJEPA) już \textit{nie istnieje} --- został tylko wytrenowany uczeń.
+\end{itemize}
+
+\begin{keyinsight}[Zapamiętaj to!]
+\textbf{ViT} produkuje embeddingi. \textbf{LeJEPA} mówi ViT-owi \textit{jak się uczyć}.
+\textbf{SIGReg} pilnuje, żeby embeddingi miały \textit{właściwy rozkład}.
+
+Po treningu LeJEPA i SIGReg ``znikają'' --- zostaje \textbf{wytrenowany ViT}
+z wagami $\theta^*$, który produkuje dobre embeddingi.
+
+Cały ten dokument wyjaśnia \textit{dlaczego} SIGReg wymusza akurat izotropowy Gauss
+$\mathcal{N}(\mathbf{0}, \mathbf{I})$ --- i dlaczego to jest matematycznie optymalne.
+\end{keyinsight}
+
+%% ============================================================
+\section{Notacja: jak czytać $f_\theta: \mathbb{R}^D \to \mathbb{R}^K$?}
+\label{sec:notacja}
+%% ============================================================
+
+\begin{tcolorbox}[
+  colback=lejepaGreen!8,
+  colframe=lejepaGreen!80,
+  fonttitle=\bfseries,
+  title={Wstawka dla początkujących},
+  breakable,
+]
+
+\subsection*{Rozbiór symboli — element po elemencie}
+
+Zapis $f_\theta: \mathbb{R}^D \to \mathbb{R}^K$ czytamy:
+
+\begin{center}
+\Large
+$\underbrace{f}_{\text{funkcja}}
+\underbrace{_\theta}_{\text{z parametrami }\theta}
+: \;
+\underbrace{\mathbb{R}^D}_{\text{wejście}}
+\;\to\;
+\underbrace{\mathbb{R}^K}_{\text{wyjście}}$
+\end{center}
+
+\bigskip
+
+\renewcommand{\arraystretch}{1.6}
+\begin{tabular}{cp{11cm}}
+\toprule
+\textbf{Symbol} & \textbf{Co oznacza?} \\
+\midrule
+$f$ & \textbf{Funkcja} — maszyna, która coś dostaje i coś wypluwa.
+      Tutaj: sieć neuronowa (encoder). \\
+$\theta$ & \textbf{Parametry} sieci — wagi i biasy, których sieć uczy się podczas
+           treningu. Dolny indeks $\theta$ mówi: ``ta funkcja zależy od parametrów $\theta$''. \\
+$\mathbb{R}^D$ & \textbf{Wejście}: wektor $D$ liczb rzeczywistych.
+                  $\mathbb{R}$ = liczby rzeczywiste ($-3.14$, $0$, $42.5$, \ldots).
+                  Indeks górny $D$ = ile tych liczb.
+                  Np.\ obraz $224 \times 224 \times 3$ (RGB) to wektor $D = 150{,}528$ liczb. \\
+$\to$ & \textbf{Strzałka}: ``mapuje na'' / ``zamienia na'' / ``produkuje''. \\
+$\mathbb{R}^K$ & \textbf{Wyjście}: wektor $K$ liczb — tzw.\ \textbf{embedding}.
+                  Np.\ $K=384$ w ViT-Small. Dużo mniejszy niż $D$! \\
+\bottomrule
+\end{tabular}
+
+\subsection*{Analogia: tłumacz}
+
+Wyobraź sobie \textbf{tłumacza} w biurze ONZ:
+
+\begin{center}
+\begin{tabular}{rcl}
+\textbf{Mowa po polsku} & $\xrightarrow{\quad f_\theta \quad}$ & \textbf{Notatka w języku uniwersalnym} \\
+(długa, $D$ słów) & & (krótka, $K$ słów) \\[0.5em]
+$\mathbb{R}^D$ & $\to$ & $\mathbb{R}^K$ \\
+\end{tabular}
+\end{center}
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Wejście} ($\mathbb{R}^D$): oryginalna mowa — dużo szczegółów, szumu, powtórzeń.
+  \item \textbf{Tłumacz} ($f_\theta$): sieć neuronowa — wyciąga \textit{sens}, odrzuca bałagan.
+  \item \textbf{Wyjście} ($\mathbb{R}^K$): zwięzła notatka — zawiera tylko to, co ważne.
+  \item $\theta$: \textit{doświadczenie} tłumacza — im lepiej wytrenowany, tym lepsza notatka.
+\end{itemize}
+
+\subsection*{Konkretny przykład}
+
+\begin{center}
+\begin{tabular}{rcl}
+Ramka wideo operacji & $\xrightarrow{\quad \text{ViT-Small} \quad}$ & Embedding \\
+$224 \times 224 \times 3 = 150{,}528$ pikseli & & $384$ liczby \\
+$\mathbf{x} \in \mathbb{R}^{150\,528}$ & $\to$ & $\mathbf{z} \in \mathbb{R}^{384}$ \\
+\end{tabular}
+\end{center}
+
+Te $384$ liczby to \textbf{reprezentacja} — kompresja tego, co jest na obrazie
+(``tu jest narzędzie chirurgiczne, tu tęczówka, tu soczewka'').
+Zamiast $150{,}528$ pikseli, mamy $384$ liczby, które \textit{opisują scenę}.
+
+\end{tcolorbox}
+
+\bigskip
+
+%% ============================================================
+\subsection{Co to jest \textit{downstream}?}
+\label{sec:downstream}
+%% ============================================================
+
+\begin{tcolorbox}[
+  colback=lejepaGreen!8,
+  colframe=lejepaGreen!80,
+  fonttitle=\bfseries,
+  title={Wstawka: Downstream task = zadanie dalsze},
+  breakable,
+]
+
+Trening modeli SSL (self-supervised learning) dzieli się na dwa etapy:
+
+\bigskip
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{|c|c|}
+\hline
+\textbf{Etap 1: Pretraining (upstream)} & \textbf{Etap 2: Downstream task} \\
+\hline
+Trenuj encoder $f_\theta$ &
+Zamroź encoder, użyj embeddingów \\
+na surowych danych (bez etykiet) &
+do \textit{konkretnego} zadania (z etykietami) \\
+\hline
+``Naucz się języka'' &
+``Zdaj egzamin'' \\
+\hline
+\end{tabular}
+\end{center}
+
+\bigskip
+
+\textbf{Analogia}: Pomyśl o wykształceniu:
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Upstream} (pretraining) = \textbf{szkoła ogólna}:
+  \begin{itemize}
+    \item Uczysz się czytać, pisać, liczyć, myśleć logicznie.
+    \item Nie wiesz jeszcze, jaki zawód wybierzesz.
+    \item Nie ma ``ocen'' z przyszłego zawodu — uczysz się \textit{ogólnie}.
+  \end{itemize}
+
+  \item \textbf{Downstream} = \textbf{praca po szkole}:
+  \begin{itemize}
+    \item Dostajesz konkretne zadanie: ``rozpoznaj fazę operacji'' albo ``wykryj instrument''.
+    \item Używasz tego, czego nauczyłeś się w szkole (embeddingi).
+    \item Dodajesz tylko mały ``dodatek'' (linear probe, k-NN), żeby rozwiązać zadanie.
+  \end{itemize}
+\end{enumerate}
+
+\bigskip
+
+\textbf{Przykłady downstream tasks}:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Zadanie} & \textbf{Wejście} & \textbf{Wyjście} \\
+\midrule
+Klasyfikacja fazy operacji & embedding ramki & ``incision'' / ``phaco'' / ``IOL'' \\
+Wykrywanie instrumentu & embedding ramki & ``tak'' / ``nie'' \\
+Segmentacja obiektów & embeddingi patchy & mapa pikseli \\
+Retrieval podobnych klatek & embedding zapytania & top-$k$ najbliższych \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\bigskip
+
+\begin{keyinsight}[Dlaczego to ważne dla izotropowego Gaussa?]
+Podczas pretreningu \textbf{nie wiemy}, jakie zadanie downstream przyjdzie.
+Dlatego chcemy, żeby embeddingi były dobre na \textit{każde} możliwe zadanie.
+
+Izotropowy Gauss gwarantuje to matematycznie: żaden kierunek nie jest
+uprzywilejowany, więc \textit{dowolna} granica decyzyjna (dowolny klasyfikator)
+będzie miała minimalny błąd.
+\end{keyinsight}
+
+\end{tcolorbox}
+
+%% ============================================================
+\subsection{Co to jest granica decyzyjna?}
+\label{sec:granica}
+%% ============================================================
+
+\begin{tcolorbox}[
+  colback=lejepaGreen!8,
+  colframe=lejepaGreen!80,
+  fonttitle=\bfseries,
+  title={Wstawka: Granica decyzyjna i klasyfikator},
+  breakable,
+]
+
+\textbf{Klasyfikator} to ten mały ``dodatek'' (linear probe, k-NN),
+który nakładamy na zamrożone embeddingi, żeby rozwiązać konkretne zadanie.
+
+\textbf{Granica decyzyjna} to linia (w 2D), płaszczyzna (w 3D) lub
+hiperpłaszczyzna (w $K$D), którą klasyfikator rysuje w przestrzeni embeddingów,
+żeby \textbf{podzielić} ją na klasy:
+
+\begin{itemize}[leftmargin=2em]
+  \item Punkty \textbf{po jednej stronie} granicy $\Rightarrow$ klasa A (np.\ ``incision''),
+  \item Punkty \textbf{po drugiej stronie} $\Rightarrow$ klasa B (np.\ ``phaco''),
+  \item Nowy, niewidziany punkt: patrzymy \textbf{po której stronie} granicy leży
+        $\Rightarrow$ przypisujemy klasę.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/decision_boundary.pdf}
+\caption{\textbf{Lewo}: Granica decyzyjna = linia dzieląca embeddingi dwóch klas.
+Nowy punkt (zielona gwiazdka) wpada po stronie A $\Rightarrow$ klasyfikujemy go jako A.
+\textbf{Środek}: Izotropowe embeddingi — granica działa dobrze
+w \textit{każdym} kierunku, bo punkty równomiernie wypełniają przestrzeń.
+\textbf{Prawo}: Anizotropowe — wzdłuż ``ściśniętej'' osi ($z_2$) granica
+prawie nie rozdziela klas, bo punkty leżą na kupce.}
+\label{fig:decision}
+\end{figure}
+
+\end{tcolorbox}
+
+\bigskip
+
+%% ============================================================
+\subsection{Dlaczego izotropia jest kluczowa? Przykład i kontrprzykład}
+\label{sec:izotropia_przyklad}
+%% ============================================================
+
+\begin{tcolorbox}[
+  colback=lejepaBlue!5,
+  colframe=lejepaBlue!80,
+  fonttitle=\bfseries,
+  title={Przykład: ten sam encoder, dwa różne zadania downstream},
+  breakable,
+]
+
+Wyobraź sobie, że masz wytrenowany encoder (ViT + LeJEPA)
+i dostajesz \textbf{dwa różne zadania} do rozwiązania:
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Zadanie A}: rozpoznaj fazę operacji
+        $\Rightarrow$ granica decyzyjna biegnie \textit{pionowo} (wzdłuż $z_1$),
+  \item \textbf{Zadanie B}: wykryj obecność instrumentu
+        $\Rightarrow$ granica decyzyjna biegnie \textit{poziomo} (wzdłuż $z_2$).
+\end{itemize}
+
+Nie wiesz z góry, które zadanie dostaniesz --- a embeddingi są już zamrożone.
+
+\subsubsection*{Przypadek 1: Embeddingi izotropowe ($\boldsymbol{\Sigma} = \mathbf{I}$)}
+
+Punkty rozłożone \textbf{równomiernie} we wszystkich kierunkach:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{lcc}
+\toprule
+ & \textbf{Zadanie A (pionowa)} & \textbf{Zadanie B (pozioma)} \\
+\midrule
+Rozrzut wzdłuż osi separacji & $\sigma = 1$ & $\sigma = 1$ \\
+Separacja klas & wyraźna & wyraźna \\
+\textbf{Accuracy} & \textbf{89\%} & \textbf{89\%} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Oba zadania działają \textbf{równie dobrze}, bo w obu kierunkach jest tyle samo ``miejsca''.
+
+\subsubsection*{Przypadek 2: Embeddingi anizotropowe ($\sigma_1 \gg \sigma_2$)}
+
+Punkty \textbf{rozciągnięte} wzdłuż $z_1$ i \textbf{ściśnięte} wzdłuż $z_2$:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{lcc}
+\toprule
+ & \textbf{Zadanie A (pionowa)} & \textbf{Zadanie B (pozioma)} \\
+\midrule
+Rozrzut wzdłuż osi separacji & $\sigma_1 = 3.5$ (ogromny!) & $\sigma_2 = 0.12$ (malutki) \\
+Separacja klas & rozmyta (dużo szumu) & idealnie ostra \\
+\textbf{Accuracy} & \textbf{68\%} (porażka!) & \textbf{99\%} (świetnie!) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Co się stało?}
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Zadanie A} wymagało separacji wzdłuż $z_1$ ---
+        ale tam jest ogromny rozrzut ($\sigma_1 = 3.5$),
+        więc klasy się mieszają i granica decyzyjna popełnia dużo błędów.
+  \item \textbf{Zadanie B} wymagało separacji wzdłuż $z_2$ ---
+        tam rozrzut jest malutki ($\sigma_2 = 0.12$),
+        więc nawet mała separacja klas jest wystarczająca.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/isotropy_example_vs_counterexample.pdf}
+\caption{Porównanie izotropowego (góra) i anizotropowego (dół) rozkładu embeddingów
+na dwóch zadaniach downstream.
+\textbf{Górny rząd}: izotropowy --- oba zadania na 89\%, bo rozrzut jest jednakowy w obu kierunkach.
+\textbf{Dolny rząd}: anizotropowy --- Zadanie A spada do 68\% (klasy się mieszają wzdłuż $z_1$),
+Zadanie B skacze do 99\% (klasy ostro rozdzielone wzdłuż $z_2$).}
+\label{fig:isotropy_example}
+\end{figure}
+
+\subsubsection*{Kluczowa obserwacja}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Rozkład embeddingów} & \textbf{Najgorsze zadanie} & \textbf{Najlepsze zadanie} \\
+\midrule
+Izotropowy & 89\% & 89\% \\
+Anizotropowy & 68\% & 99\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Anizotropowy encoder to \textbf{hazard}: może trafić w zadanie, dla którego jest świetny (99\%),
+albo w zadanie, dla którego jest fatalny (68\%).
+Izotropowy encoder daje \textbf{gwarancję}: niezależnie od zadania, wynik jest stabilnie dobry.
+
+\begin{keyinsight}[Dlaczego izotropia?]
+Podczas pretreningu \textbf{nie wiemy}, jakie zadanie downstream przyjdzie.
+Nie wiemy, w jakim kierunku będzie biegła granica decyzyjna.
+
+Izotropowy Gauss $\mathcal{N}(\mathbf{0}, \mathbf{I})$ gwarantuje,
+że \textbf{żaden kierunek nie jest gorszy od innego} ---
+rozrzut jest identyczny we \textit{wszystkich} $384$ wymiarach embeddingu.
+Dlatego \textit{dowolne} zadanie downstream (dowolna orientacja granicy decyzyjnej)
+da co najmniej tak dobry wynik, jak najgorszy przypadek izotropowego rozkładu.
+
+To nie jest kwestia ``więcej linii'' --- to kwestia
+\textbf{eliminacji ryzyka}, że trafimy na kierunek, w którym embeddingi są bezużyteczne.
+\end{keyinsight}
+
+\end{tcolorbox}
+
+%% ============================================================
+\section{Jak działa Vision Transformer (ViT)?}
+\label{sec:vit}
+%% ============================================================
+
+W LeJEPA encoder $f_\theta$ to \textbf{Vision Transformer} (ViT).
+Zanim powiemy \textit{jaki rozkład powinny mieć embeddingi},
+musimy zrozumieć \textit{jak ViT je produkuje}.
+
+\subsection{Krok 1: Obraz $\to$ patche (łatki)}
+
+ViT \textbf{nie przetwarza pikseli po kolei} jak CNN.
+Zamiast tego dzieli obraz na siatkę kwadratowych kawałków:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{rl}
+Obraz wejściowy: & $224 \times 224 \times 3$ pikseli (RGB) \\
+Rozmiar patcha: & $16 \times 16$ pikseli \\
+Liczba patchy: & $\frac{224}{16} \times \frac{224}{16} = 14 \times 14 = \mathbf{196}$ patchy \\
+Wymiar jednego patcha: & $16 \times 16 \times 3 = \mathbf{768}$ liczb (spłaszczone piksele) \\
+\end{tabular}
+\end{center}
+
+Każdy patch to kawałek obrazu (np.\ fragment tęczówki, kawałek narzędzia).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/vit_patches.pdf}
+\caption{Od obrazu do tokenów. \textbf{1}: Obraz wejściowy.
+\textbf{2}: Podział na $14 \times 14 = 196$ patchy (żółty = przykładowy patch).
+\textbf{3}: Każdy patch spłaszczony do wektora $\mathbb{R}^{768}$.
+\textbf{4}: Projekcja liniowa do $\mathbb{R}^{384}$ + dodanie tokenu [CLS].}
+\label{fig:patches}
+\end{figure}
+
+\subsection{Krok 2: Projekcja liniowa (Patch Embedding)}
+
+Wektor 768-wymiarowy to za dużo. ViT kompresuje go \textbf{mnożeniem macierzowym}:
+
+\begin{equation}
+\mathbf{e}_i = \mathbf{W}_{\text{patch}} \cdot \mathbf{p}_i + \mathbf{b}_{\text{patch}}
+\quad \text{gdzie } \mathbf{W}_{\text{patch}} \in \mathbb{R}^{384 \times 768}
+\end{equation}
+
+To zwykłe mnożenie macierzy: $768$ pikseli $\to$ $384$ wymiarów.
+Macierz $\mathbf{W}_{\text{patch}}$ jest \textbf{uczona} — sieć sama uczy się,
+jakie cechy wyciągać z patcha.
+
+\bigskip
+
+% ============================================================
+% ROZBUDOWANY PRZYKŁAD PROJEKCJI LINIOWEJ
+% ============================================================
+
+\begin{tcolorbox}[
+  colback=lejepaBlue!5,
+  colframe=lejepaBlue!80,
+  fonttitle=\bfseries,
+  title={Przykład krok po kroku: co dokładnie robi mnożenie macierzowe?},
+  breakable,
+]
+
+Prawdziwe wymiary ($384 \times 768$) są za duże, żeby je zobaczyć.
+Użyjemy \textbf{miniaturowego przykładu}: patch $3$ pikseli $\to$ embedding $2$ cech.
+Zasada jest \textit{identyczna} — zmienia się tylko rozmiar.
+
+\subsubsection*{Krok A: Mamy patch (wektor pikseli)}
+
+Wyobraź sobie maleńki patch $1 \times 1 \times 3$ (jeden piksel RGB):
+
+\begin{equation}
+\mathbf{p} = \begin{pmatrix} 0.8 \\ 0.2 \\ 0.1 \end{pmatrix}
+\quad \leftarrow \text{3 liczby: } (\underbrace{0.8}_{\text{Red}},\; \underbrace{0.2}_{\text{Green}},\; \underbrace{0.1}_{\text{Blue}})
+\end{equation}
+
+To jest nasz ``wektor wejściowy'' $\mathbf{p} \in \mathbb{R}^3$.
+
+\subsubsection*{Krok B: Mamy macierz wag (uczoną)}
+
+Sieć ma macierz $\mathbf{W} \in \mathbb{R}^{2 \times 3}$ — dwa wiersze, trzy kolumny:
+
+\begin{equation}
+\mathbf{W} = \begin{pmatrix}
+w_{11} & w_{12} & w_{13} \\
+w_{21} & w_{22} & w_{23}
+\end{pmatrix}
+= \begin{pmatrix}
+0.5 & -0.3 & 0.1 \\
+-0.2 & 0.7 & 0.4
+\end{pmatrix}
+\end{equation}
+
+\textbf{Skąd te liczby?} Na początku treningu — \textbf{losowe}!
+Potem gradient descent je zmienia, żeby dawały coraz lepsze cechy.
+
+\subsubsection*{Krok C: Mnożenie macierz $\times$ wektor}
+
+\begin{equation}
+\mathbf{e} = \mathbf{W} \cdot \mathbf{p} =
+\begin{pmatrix}
+w_{11} & w_{12} & w_{13} \\
+w_{21} & w_{22} & w_{23}
+\end{pmatrix}
+\begin{pmatrix} p_1 \\ p_2 \\ p_3 \end{pmatrix}
+= \begin{pmatrix}
+w_{11} p_1 + w_{12} p_2 + w_{13} p_3 \\
+w_{21} p_1 + w_{22} p_2 + w_{23} p_3
+\end{pmatrix}
+\end{equation}
+
+\textbf{Reguła}: każdy element wyniku to \textbf{iloczyn skalarny} wiersza macierzy z wektorem wejściowym.
+
+\medskip
+
+Podstawiamy liczby:
+
+\begin{align}
+e_1 &= \underbrace{0.5}_{\mathclap{w_{11}}} \cdot \underbrace{0.8}_{\mathclap{p_1}}
++ \underbrace{(-0.3)}_{\mathclap{w_{12}}} \cdot \underbrace{0.2}_{\mathclap{p_2}}
++ \underbrace{0.1}_{\mathclap{w_{13}}} \cdot \underbrace{0.1}_{\mathclap{p_3}}
+\nonumber\\
+&= 0.40 + (-0.06) + 0.01 = \mathbf{0.35}
+\label{eq:e1_example}
+\\[0.8em]
+e_2 &= \underbrace{(-0.2)}_{\mathclap{w_{21}}} \cdot \underbrace{0.8}_{\mathclap{p_1}}
++ \underbrace{0.7}_{\mathclap{w_{22}}} \cdot \underbrace{0.2}_{\mathclap{p_2}}
++ \underbrace{0.4}_{\mathclap{w_{23}}} \cdot \underbrace{0.1}_{\mathclap{p_3}}
+\nonumber\\
+&= (-0.16) + 0.14 + 0.04 = \mathbf{0.02}
+\label{eq:e2_example}
+\end{align}
+
+\subsubsection*{Krok D: Dodajemy bias}
+
+Bias $\mathbf{b} \in \mathbb{R}^2$ to dodatkowy uczony wektor (przesunięcie):
+
+\begin{equation}
+\mathbf{e} = \mathbf{W} \cdot \mathbf{p} + \mathbf{b}
+= \begin{pmatrix} 0.35 \\ 0.02 \end{pmatrix}
++ \begin{pmatrix} 0.1 \\ -0.05 \end{pmatrix}
+= \begin{pmatrix} 0.45 \\ -0.03 \end{pmatrix}
+\end{equation}
+
+\textbf{Wynik}: z 3 pikseli RGB dostaliśmy 2-wymiarowy embedding $\mathbf{e} = (0.45,\; {-0.03})^\top$.
+
+\subsubsection*{Krok E: Co to znaczy geometrycznie?}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{cp{10cm}}
+\toprule
+\textbf{Element} & \textbf{Interpretacja} \\
+\midrule
+Wiersz 1 macierzy: $(0.5,\; {-0.3},\; 0.1)$ &
+\textbf{Filtr cechy 1}: ``dużo Red, mało Green, trochę Blue''
+$\Rightarrow$ reaguje na \textit{ciepłe} kolory (czerwień). \\
+Wiersz 2 macierzy: $(-0.2,\; 0.7,\; 0.4)$ &
+\textbf{Filtr cechy 2}: ``anty-Red, dużo Green, trochę Blue''
+$\Rightarrow$ reaguje na \textit{zimne} kolory (zieleń/cyan). \\
+$e_1 = 0.45$ & Nasz patch jest dość ``ciepły'' (dużo Red). \\
+$e_2 = -0.03$ & Nasz patch jest prawie neutralny w ``zimnej'' cesze. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Każdy wiersz macierzy $\mathbf{W}$ to \textbf{jeden ``detektor cechy''}.
+Iloczyn skalarny mierzy \textbf{jak bardzo} patch pasuje do danego detektora.
+
+\subsubsection*{Krok F: Skalowanie do prawdziwego ViT-Small}
+
+Teraz podstaw prawdziwe wymiary:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{rll}
+\toprule
+ & \textbf{Nasz przykład} & \textbf{ViT-Small (prawdziwy)} \\
+\midrule
+Patch (wejście) & $\mathbf{p} \in \mathbb{R}^{3}$ (3 piksele RGB) & $\mathbf{p} \in \mathbb{R}^{768}$ ($16 \times 16 \times 3$ pikseli) \\
+Macierz wag & $\mathbf{W} \in \mathbb{R}^{2 \times 3}$ (6 wag) & $\mathbf{W} \in \mathbb{R}^{384 \times 768}$ (294\,912 wag) \\
+Bias & $\mathbf{b} \in \mathbb{R}^{2}$ (2 biasy) & $\mathbf{b} \in \mathbb{R}^{384}$ (384 biasy) \\
+Embedding (wyjście) & $\mathbf{e} \in \mathbb{R}^{2}$ (2 cechy) & $\mathbf{e} \in \mathbb{R}^{384}$ (384 cechy) \\
+\midrule
+\textit{Operacja na 1 cechę} & $3$ mnożenia + $3$ dodawania & $768$ mnożeń + $768$ dodawań \\
+\textit{Wszystkie cechy} & $2 \times 3 = 6$ operacji & $384 \times 768 = 294\,912$ operacji \\
+\textit{Wszystkie patche} & -- & $196 \times 294\,912 \approx \mathbf{57.8\text{M}}$ operacji \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection*{Wzorzec ogólny: co robi \textit{każdy} wiersz macierzy?}
+
+Zapiszmy $k$-tą cechę embeddingu ($k = 1, \ldots, 384$):
+
+\begin{equation}
+\boxed{
+e_k = \sum_{j=1}^{768} w_{kj}\, p_j + b_k
+= \underbrace{w_{k1}\, p_1 + w_{k2}\, p_2 + \cdots + w_{k,768}\, p_{768}}_{\text{iloczyn skalarny: wiersz $k$ macierzy $\mathbf{W}$ z wektorem $\mathbf{p}$}} + \;b_k
+}
+\end{equation}
+
+\textbf{Podsumowanie}: Każda z $384$ cech embeddingu to \textbf{ważona suma wszystkich 768 pikseli patcha}, z wagami wyuczonymi podczas treningu.
+Sieć sama decyduje, jakie kombinacje pikseli są informatywne — to jej ``receptory''.
+
+\end{tcolorbox}
+
+\subsection{Krok 3: Embedding pozycyjny}
+
+Po projekcji ViT dodaje \textbf{informację o pozycji} — inaczej nie wiedziałby,
+\textit{gdzie} na obrazie jest dany patch (bo Transformer nie ma poczucia kolejności):
+
+\begin{equation}
+\mathbf{h}_i^{(0)} = \mathbf{e}_i + \mathbf{pos}_i
+\quad \text{gdzie } \mathbf{pos}_i \in \mathbb{R}^{384} \text{ — uczony wektor dla pozycji } i
+\end{equation}
+
+Jest $196$ wektorów pozycyjnych (po jednym na każdy patch).
+
+\bigskip
+
+\begin{tcolorbox}[
+  colback=lejepaBlue!5,
+  colframe=lejepaBlue!80,
+  fonttitle=\bfseries,
+  title={Pogłębione wyjaśnienie: embedding pozycyjny},
+  breakable,
+]
+
+\subsubsection*{Co znaczy ``uczony wektor''?}
+
+Embedding pozycyjny to \textbf{parametr sieci} --- nie jest wyliczony z żadnej formuły
+matematycznej, tylko \textbf{trenowany przez gradient descent} razem z resztą wag.
+
+W kodzie PyTorch to dosłownie jedna linia:
+\begin{center}
+\texttt{self.pos\_embed = nn.Parameter(torch.randn(1, 196, 384))}
+\end{center}
+
+To tworzy tablicę $196$ losowych wektorów po $384$ liczb każdy (łącznie $196 \times 384 = 75\,264$ parametrów).
+Są one aktualizowane przez backpropagation tak samo, jak macierze
+$\mathbf{W}_Q$, $\mathbf{W}_K$, $\mathbf{W}_V$ i wszystkie inne wagi sieci.
+
+Alternatywą byłyby \textbf{stałe} (fixed) embeddingi pozycyjne --- np.\ sinusoidalne
+jak w oryginalnym Transformerze (Vaswani et~al., 2017),
+gdzie pozycje koduje się wzorem $\sin(\text{pos}/10000^{2i/d})$.
+Ale ViT (Dosovitskiy et~al., 2020) wybrał wariant \textbf{uczony},
+bo działa lepiej na obrazach.
+
+\subsubsection*{Jak działa mapowanie: patch $i$ $\to$ $\mathbf{pos}_i$?}
+
+To jest \textbf{zwykłe indeksowanie tablicy} --- najprostsza możliwa operacja:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{cl}
+\toprule
+\textbf{Numer patcha} & \textbf{Wektor pozycyjny} \\
+\midrule
+$1$ (pozycja $(1,1)$ --- lewy górny róg) & $\mathbf{pos}_1 = [0.31,\; 0.28,\; {-0.15},\; \ldots]$ \\
+$2$ (pozycja $(1,2)$ --- obok w prawo) & $\mathbf{pos}_2 = [0.33,\; 0.27,\; {-0.14},\; \ldots]$ \\
+$15$ (pozycja $(2,1)$ --- rząd niżej) & $\mathbf{pos}_{15} = [0.30,\; 0.31,\; {-0.12},\; \ldots]$ \\
+$\vdots$ & $\vdots$ \\
+$196$ (pozycja $(14,14)$ --- prawy dolny róg) & $\mathbf{pos}_{196} = [{-0.45},\; {-0.38},\; 0.52,\; \ldots]$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Numeracja patchy jest \textbf{ustalona z góry} --- od lewej do prawej, z góry na dół:
+\begin{center}
+\begin{tabular}{cccccc}
+$1$ & $2$ & $3$ & $4$ & $\cdots$ & $14$ \\
+$15$ & $16$ & $17$ & $18$ & $\cdots$ & $28$ \\
+$29$ & $30$ & $31$ & $32$ & $\cdots$ & $42$ \\
+$\vdots$ & & & & & $\vdots$ \\
+$183$ & $184$ & $185$ & $186$ & $\cdots$ & $196$ \\
+\end{tabular}
+\end{center}
+
+Mapowanie jest \textbf{sztywne} i \textbf{stałe} przez cały trening:
+patch w pozycji $(r, c)$ na obrazie \textit{zawsze} dostaje wektor
+$\mathbf{pos}_{(r-1) \cdot 14 + c}$.
+Zmienia się \textbf{zawartość} wektorów (gradient je modyfikuje),
+ale \textbf{przypisanie} numer $\to$ wektor się nigdy nie zmienia.
+
+\subsubsection*{Ale skoro na starcie wektory są losowe --- skąd sieć wie, co jest obok czego?}
+
+\textbf{Na starcie --- nie wie!} I to jest OK, bo na początku sieć produkuje śmieciowe embeddingi.
+Trening to naprawia krok po kroku:
+
+\textbf{Epoka 0} (przed treningiem):
+\begin{center}
+$\mathbf{pos}_1 = [0.52,\; {-0.11},\; 0.87,\; \ldots]$ --- losowe \\
+$\mathbf{pos}_2 = [{-0.34},\; 0.65,\; 0.02,\; \ldots]$ --- losowe \\
+$\mathbf{pos}_{15} = [0.91,\; {-0.73},\; 0.44,\; \ldots]$ --- losowe
+\end{center}
+Sieć nie ma pojęcia, kto jest obok kogo.
+Attention jest równomierny --- każdy patch ``patrzy'' na wszystkich po równo.
+Embedding $=$ losowy szum.
+
+\medskip
+
+\textbf{W trakcie treningu}: LeJEPA podaje dwa widoki (augmentacje) tego samego kadru
+i mówi: ``embeddingi powinny być podobne''. Żeby to osiągnąć,
+sieć \textit{musi} rozumieć \textbf{co gdzie jest} na obrazie --- inaczej
+nie potrafi dopasować widoków.
+
+Gradient descent zmienia wektory pozycyjne:
+\begin{itemize}[leftmargin=2em]
+  \item Patch 1 i Patch 2 (sąsiedzi) \textbf{wielokrotnie} widzą
+        podobne rzeczy w danych (sąsiednie kawałki tej samej tęczówki).
+        Loss wymusza, żeby attention między nimi działał dobrze.
+        Gradient popycha $\mathbf{pos}_1$ i $\mathbf{pos}_2$
+        w kierunku \textbf{podobnych} wartości.
+  \item Patch 1 i Patch 196 (przeciwne rogi) rzadko widzą podobne rzeczy
+        --- gradient je \textbf{odpycha}.
+\end{itemize}
+
+\textbf{Po 100 epokach}:
+\begin{center}
+$\mathbf{pos}_1 = [0.31,\; 0.28,\; {-0.15},\; \ldots]$ \\
+$\mathbf{pos}_2 = [0.33,\; 0.27,\; {-0.14},\; \ldots]$
+\quad $\leftarrow$ podobny do $\mathbf{pos}_1$ (sąsiad w rzędzie!) \\
+$\mathbf{pos}_{15} = [0.30,\; 0.31,\; {-0.12},\; \ldots]$
+\quad $\leftarrow$ podobny do $\mathbf{pos}_1$ (sąsiad w kolumnie!) \\
+$\mathbf{pos}_{196} = [{-0.45},\; {-0.38},\; 0.52,\; \ldots]$
+\quad $\leftarrow$ zupełnie inny (daleki róg)
+\end{center}
+
+Sieć \textbf{sama odkryła geometrię} siatki --- nikt jej tego nie powiedział.
+To wyłoniło się z danych.
+
+\begin{keyinsight}[Analogia: puzzle]
+Embedding pozycyjny to jak \textbf{składanie puzzli}:
+\begin{itemize}
+  \item \textbf{Epoka 0}: wysypujesz puzzle na stół ---
+        na odwrocie każdego kawałka jest numer, ale nie wiesz, co pasuje do czego.
+  \item \textbf{W trakcie treningu}: zauważasz wzorce ---
+        kawałek z fragmentem tęczówki pasuje do innego z fragmentem tęczówki
+        (attention uczy się, kto jest ważny).
+  \item \textbf{Po treningu}: ``ułożyłeś puzzle'' ---
+        numery na odwrocie nabrały sensu, bo wiesz,
+        że kawałek 33 jest zawsze obok kawałka 34.
+\end{itemize}
+\end{keyinsight}
+
+\subsubsection*{Dlaczego dodawanie $\mathbf{e}_i + \mathbf{pos}_i$, a nie konkatenacja?}
+
+Mamy dwie opcje łączenia informacji z patcha ($\mathbf{e}_i$) z pozycją ($\mathbf{pos}_i$):
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Metoda} & \textbf{Wymiar wyniku} & \textbf{Koszt obliczeniowy} \\
+\midrule
+Dodawanie: $\mathbf{h} = \mathbf{e} + \mathbf{pos}$ & $384$ (bez zmiany) & zerowy \\
+Konkatenacja: $\mathbf{h} = [\mathbf{e}\;;\;\mathbf{pos}]$ & $768$ (podwojenie!) & $2\times$ w każdej warstwie \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Dodawanie jest ``za darmo'' i w praktyce daje tak samo dobre wyniki
+(sprawdzone empirycznie w artykule o ViT).
+Sieć sama uczy się ``rozdzielać'' wymiary --- część wymiarów
+w $\mathbf{h}_i$ będzie zdominowana przez $\mathbf{e}_i$ (treść wizualna),
+część przez $\mathbf{pos}_i$ (pozycja), a część będzie mieszanką.
+
+\subsubsection*{Jak gradient przepływa przez dodawanie?}
+
+Zanim zastosujemy to do ViT-a, przypomnijmy \textbf{podstawową regułę pochodnych}:
+
+\medskip
+
+\textbf{Reguła: pochodna sumy.}
+Jeśli $f(x) = x + c$, gdzie $c$ nie zależy od $x$, to:
+\begin{equation}
+\frac{\partial f}{\partial x} = \frac{\partial (x + c)}{\partial x}
+= \underbrace{\frac{\partial x}{\partial x}}_{= 1}
++ \underbrace{\frac{\partial c}{\partial x}}_{= 0}
+= 1
+\end{equation}
+
+\textbf{Dlaczego?}
+\begin{itemize}[leftmargin=2em]
+  \item Pochodna $x$ po $x$ $= 1$, bo zmiana $x$ o $\Delta$ zmienia wynik dokładnie o $\Delta$.
+  \item Pochodna $c$ po $x$ $= 0$, bo $c$ jest niezależne od $x$ --- zmiana $x$ nie rusza $c$.
+\end{itemize}
+
+\textbf{Przykład liczbowy.}
+Niech $f(x) = x + 7$. Wtedy:
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{ccc}
+$x$ & $f(x) = x + 7$ & Zmiana $f$ gdy $x$ rośnie o $1$ \\
+\midrule
+$3$ & $10$ & --- \\
+$4$ & $11$ & $+1$ \\
+$5$ & $12$ & $+1$ \\
+$6$ & $13$ & $+1$
+\end{tabular}
+\end{center}
+Każdy wzrost $x$ o $1$ daje wzrost $f$ o dokładnie $1$. Stąd $\frac{\partial f}{\partial x} = 1$.
+Stała $7$ nic nie zmienia --- przesuwa krzywą w górę, ale nie zmienia nachylenia.
+
+\medskip
+
+\textbf{Zastosowanie do ViT-a.}
+Sieć liczy loss na podstawie $\mathbf{h}_i$, a $\mathbf{h}_i = \mathbf{e}_i + \mathbf{pos}_i$.
+Dla dowolnego wymiaru $k$ (od $1$ do $384$):
+\begin{equation}
+h_i[k] = \underbrace{e_i[k]}_{\text{nasza ``$x$''}} + \underbrace{\text{pos}_i[k]}_{\text{nasze ``$c$'' (inna zmienna)}}
+\end{equation}
+
+Stosujemy regułę pochodnej sumy:
+\begin{equation}
+\frac{\partial h_i[k]}{\partial e_i[k]}
+= \underbrace{\frac{\partial\, e_i[k]}{\partial\, e_i[k]}}_{=1}
++ \underbrace{\frac{\partial\, \text{pos}_i[k]}{\partial\, e_i[k]}}_{=0,\text{ bo } \text{pos}_i \text{ nie zależy od } e_i}
+= 1
+\end{equation}
+
+Analogicznie:
+\begin{equation}
+\frac{\partial h_i[k]}{\partial\, \text{pos}_i[k]}
+= \underbrace{\frac{\partial\, e_i[k]}{\partial\, \text{pos}_i[k]}}_{=0}
++ \underbrace{\frac{\partial\, \text{pos}_i[k]}{\partial\, \text{pos}_i[k]}}_{=1}
+= 1
+\end{equation}
+
+Ponieważ to zachodzi dla \textit{każdego} wymiaru $k$, zapisujemy wektorowo:
+\begin{equation}
+\frac{\partial \mathbf{h}_i}{\partial \mathbf{e}_i} = \mathbf{1}, \qquad
+\frac{\partial \mathbf{h}_i}{\partial \mathbf{pos}_i} = \mathbf{1}
+\end{equation}
+
+Więc przez chain rule \textbf{oba dostają ten sam gradient}:
+\begin{equation}
+\frac{\partial \mathcal{L}}{\partial \mathbf{e}_i}
+= \frac{\partial \mathcal{L}}{\partial \mathbf{h}_i} \cdot 1
+= \frac{\partial \mathcal{L}}{\partial \mathbf{h}_i}, \qquad
+\frac{\partial \mathcal{L}}{\partial \mathbf{pos}_i}
+= \frac{\partial \mathcal{L}}{\partial \mathbf{h}_i} \cdot 1
+= \frac{\partial \mathcal{L}}{\partial \mathbf{h}_i}
+\end{equation}
+
+Ale potem gradient \textbf{rozchodzi się} w dwie różne gałęzie:
+
+\begin{center}
+\begin{tabular}{cp{10.5cm}}
+\toprule
+\textbf{Gałąź} & \textbf{Co się dzieje z gradientem?} \\
+\midrule
+$\mathbf{pos}_i$ &
+To jest \textbf{parametr sieci} (liść w grafie obliczeń).
+Gradient \textbf{bezpośrednio} go aktualizuje:
+$\mathbf{pos}_i \leftarrow \mathbf{pos}_i - \eta \cdot \frac{\partial \mathcal{L}}{\partial \mathbf{pos}_i}$ \\
+\midrule
+$\mathbf{e}_i$ &
+To \textbf{nie jest} parametr --- to wynik obliczenia
+$\mathbf{e}_i = \mathbf{W}_{\text{patch}} \cdot \mathbf{p}_i + \mathbf{b}_{\text{patch}}$.
+Gradient płynie \textbf{dalej wstecz}:
+$\frac{\partial \mathcal{L}}{\partial \mathbf{W}_{\text{patch}}}
+= \frac{\partial \mathcal{L}}{\partial \mathbf{e}_i} \cdot \mathbf{p}_i^\top$
+$\Rightarrow$ aktualizuje $\mathbf{W}_{\text{patch}}$ i $\mathbf{b}_{\text{patch}}$. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Schematycznie --- gradient rozchodzi się w dwie gałęzie.
+
+\textbf{Uwaga:} $\mathcal{L}$ to \textbf{pełna funkcja straty LeJEPA} (szczegółowo opisana
+w Sekcji~\ref{sec:fulloss}, rów.~\ref{eq:lejepa}):
+\[
+\mathcal{L} = \lambda \cdot \text{SIGReg}(\mathbf{z}) + (1-\lambda) \cdot \|\text{centroid} - \mathbf{z}_v\|^2
+\]
+Pierwszy człon wymusza rozkład $\mathcal{N}(\mathbf{0}, \mathbf{I})$,
+drugi --- żeby widoki tego samego obrazu miały podobne embeddingi.
+
+\begin{center}
+$\mathcal{L}$ (loss) \\[0.3em]
+$\downarrow$ \small{gradient $\frac{\partial \mathcal{L}}{\partial \mathbf{h}_i}$} \\[0.3em]
+$\mathbf{h}_i = \mathbf{e}_i + \mathbf{pos}_i$ \\[0.5em]
+\begin{tabular}{c@{\hspace{2cm}}c}
+$\swarrow$ \textbf{Gałąź lewa} & $\searrow$ \textbf{Gałąź prawa} \\[0.5em]
+$\mathbf{e}_i$ & $\mathbf{pos}_i$ \\
+\small{(to nie jest parametr!} & \small{(to JEST parametr)} \\
+\small{gradient płynie dalej $\downarrow$)} & \small{$\Downarrow$ aktualizuj bezpośrednio:} \\[0.3em]
+$\downarrow$ & $\mathbf{pos}_i \leftarrow \mathbf{pos}_i - \eta \cdot \frac{\partial \mathcal{L}}{\partial \mathbf{h}_i}$ \\[0.8em]
+$\mathbf{W}_{\text{patch}} \cdot \mathbf{p}_i + \mathbf{b}_{\text{patch}}$ & \\[0.3em]
+$\swarrow$ \hspace{1cm} $\searrow$ & \\[0.3em]
+$\mathbf{W}_{\text{patch}} \leftarrow$ \small{aktual.}
+\hspace{0.5cm} $\mathbf{b}_{\text{patch}} \leftarrow$ \small{aktual.} & \\
+\end{tabular}
+\end{center}
+
+\begin{keyinsight}[Dlaczego uczą się różnych rzeczy, skoro gradient jest ten sam?]
+Bo mają \textbf{różne źródła}:
+\begin{itemize}
+  \item $\mathbf{e}_i$ zależy od \textbf{pikseli patcha} $\mathbf{p}_i$
+        --- więc $\mathbf{W}_{\text{patch}}$ uczy się wyciągać \textit{cechy wizualne}
+        (krawędzie, kolory, tekstury).
+  \item $\mathbf{pos}_i$ zależy \textbf{tylko od numeru pozycji} --- nie widzi pikseli,
+        więc może kodować wyłącznie \textit{``gdzie na obrazie''}.
+\end{itemize}
+Ten sam gradient, ale dwa \textbf{różne} cele uczenia --- bo informacja
+o treści (piksele) i o pozycji (numer) są \textit{rozdzielone architekturalnie}.
+\end{keyinsight}
+
+\end{tcolorbox}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/vit_positions.pdf}
+\caption{\textbf{Lewo}: Wizualizacja jednego wymiaru embeddingu pozycyjnego na siatce $14 \times 14$.
+Bliskie pozycje mają podobne wartości — sieć ``nauczyła się'' geometrii obrazu.
+\textbf{Prawo}: Podobieństwo cosinusowe między wybranymi pozycjami —
+bliskie pozycje (zielony) vs.\ dalekie (czerwony).}
+\label{fig:positions}
+\end{figure}
+
+\subsection{Krok 4: Token [CLS]}
+
+Przed wejściem do Transformera dodajemy \textbf{specjalny token} [CLS]
+(class token) — dodatkowy uczony wektor $\mathbf{h}_{\text{CLS}}^{(0)} \in \mathbb{R}^{384}$.
+
+Teraz mamy $196 + 1 = \mathbf{197}$ tokenów, każdy o wymiarze $384$.
+
+\textbf{Po co [CLS]?} To ``token-pytanie'', który nie odpowiada żadnemu konkretnemu patchowi.
+Jego zadanie: \textbf{zebrać informację z WSZYSTKICH patchy} przez mechanizm attention
+i stać się \textbf{globalnym embeddingiem całego obrazu}.
+
+\subsection{Krok 5: Bloki Transformera (encoder)}
+
+Serce ViT to $L = 12$ identycznych bloków (w ViT-Small).
+Każdy blok składa się z dwóch części:
+
+\subsubsection*{(a) Self-Attention: ``kto na kogo patrzy''}
+
+Każdy token tworzy trzy wektory przez mnożenie macierzowe:
+
+\begin{equation}
+\mathbf{Q}_i = \mathbf{W}_Q \mathbf{h}_i, \quad
+\mathbf{K}_i = \mathbf{W}_K \mathbf{h}_i, \quad
+\mathbf{V}_i = \mathbf{W}_V \mathbf{h}_i
+\end{equation}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{cl}
+\toprule
+\textbf{Wektor} & \textbf{Rola} \\
+\midrule
+$\mathbf{Q}_i$ (Query) & ``Czego szukam?'' — pytanie tokenu $i$ \\
+$\mathbf{K}_j$ (Key) & ``Co mam do zaoferowania?'' — opis tokenu $j$ \\
+$\mathbf{V}_j$ (Value) & ``Jaka jest moja treść?'' — informacja tokenu $j$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ============ SZCZEGÓŁOWE WYJAŚNIENIE MACIERZY W_Q, W_K, W_V ============
+\begin{tcolorbox}[colback=blue!3, colframe=blue!60!black,
+  title=\textbf{Co to są macierze $\mathbf{W}_Q$, $\mathbf{W}_K$, $\mathbf{W}_V$?}]
+
+\textbf{Jeden token} $\mathbf{h}_i \in \mathbb{R}^{384}$ zawiera \textit{wszystko} o patchu $i$:
+kolor, teksturę, kształt, pozycję\ldots To jest 384-wymiarowy opis ``wszystkiego naraz''.
+
+Problem: żeby mechanizm attention mógł działać, potrzebujemy \textbf{trzech różnych perspektyw}
+na ten sam token --- pytanie, odpowiedź, treść. Gdybyśmy używali $\mathbf{h}_i$ bezpośrednio
+do wszystkich trzech ról, nie moglibyśmy oddzielić ``czego szukam'' od ``co oferuję''.
+
+\textbf{Rozwiązanie}: mnożymy $\mathbf{h}_i$ przez trzy \textit{różne} macierze,
+które ``wyciągają'' różne aspekty informacji:
+
+\vspace{6pt}
+
+\textbf{Wymiary macierzy} (ViT-Small z 6 głowicami, $d = 384/6 = 64$ na głowicę):
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{lccl}
+\toprule
+\textbf{Macierz} & \textbf{Wymiar} & \textbf{Operacja} & \textbf{Efekt} \\
+\midrule
+$\mathbf{W}_Q$ & $64 \times 384$ & $\mathbf{W}_Q \cdot \mathbf{h}_i = \mathbf{Q}_i$ & $\mathbb{R}^{384} \to \mathbb{R}^{64}$ \\
+$\mathbf{W}_K$ & $64 \times 384$ & $\mathbf{W}_K \cdot \mathbf{h}_i = \mathbf{K}_i$ & $\mathbb{R}^{384} \to \mathbb{R}^{64}$ \\
+$\mathbf{W}_V$ & $64 \times 384$ & $\mathbf{W}_V \cdot \mathbf{h}_i = \mathbf{V}_i$ & $\mathbb{R}^{384} \to \mathbb{R}^{64}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Każda macierz \textbf{kompresuje} 384 wymiarów do 64 wymiarów,
+ale każda robi to \textbf{inaczej} --- wyciągając inne cechy!
+
+\end{tcolorbox}
+
+% ============ DLACZEGO W_Q "PYTA", A W_K "ODPOWIADA"? ============
+\begin{tcolorbox}[colback=red!3, colframe=red!60!black,
+  title=\textbf{Ale dlaczego $\mathbf{W}_Q$ ``pyta'', a $\mathbf{W}_K$ ``odpowiada''?}]
+
+To kluczowe pytanie! Odpowiedź jest zaskakująca:
+
+\textbf{Nic w samych macierzach nie sprawia, że jedna jest ``pytająca'' a druga ``odpowiadająca''.}
+Na początku treningu wszystkie trzy ($\mathbf{W}_Q, \mathbf{W}_K, \mathbf{W}_V$)
+to \textbf{losowe macierze} --- identyczne co do natury.
+
+To, co nadaje im rolę, to ich \textbf{pozycja w obliczeniach} (architektura):
+
+\begin{center}
+\begin{tabular}{l}
+$\underbrace{\mathbf{Q}_i \cdot \mathbf{K}_j}_{\text{iloczyn skalarny}}
+\;\to\; \alpha_{ij} \;\text{(waga attention: \textbf{KTO} jest ważny)}$ \\[10pt]
+$\underbrace{\sum_j \alpha_{ij} \cdot \mathbf{V}_j}_{\text{ważona suma}}
+\;\to\; \text{wynik (\textbf{TREŚĆ} do przekazania dalej)}$
+\end{tabular}
+\end{center}
+
+gdzie:
+\begin{itemize}[leftmargin=2em]
+\item $i$ = token, który \textbf{pyta} (``ja'') --- np.\ patch nr 42 (fragment narzędzia),
+\item $j$ = token, który jest \textbf{odpytywany} (``inni'') --- przebiega po \textit{wszystkich}
+      197 tokenach ($j = 1, 2, \ldots, 197$),
+\item $\alpha_{ij}$ = ile uwagi token $i$ poświęca tokenowi $j$
+      (po softmax: $\sum_j \alpha_{ij} = 1$),
+\item $\mathbf{V}_j$ = treść, którą token $j$ ``przekazuje'', gdy zostanie wybrany.
+\end{itemize}
+Innymi słowy: dla \textbf{każdego} tokenu $i$, obliczamy jego podobieństwo
+do \textbf{każdego} tokenu $j$ (włącznie z samym sobą, $j = i$).
+
+\textbf{Dlaczego to wystarczy?} Bo gradient ``widzi'' różne ścieżki:
+
+\begin{itemize}[leftmargin=2em]
+\item \textbf{$\mathbf{W}_Q$ i $\mathbf{W}_K$} uczą się ``współpracować'' ---
+      bo ich wyniki ($\mathbf{Q}$ i $\mathbf{K}$) są mnożone skalarnie ($\mathbf{Q} \cdot \mathbf{K}$).
+      Gradient wymusza: duży iloczyn skalarny dla \textit{ważnych} par tokenów,
+      mały dla \textit{nieważnych}.
+
+\item \textbf{$\mathbf{W}_V$} uczy się czegoś \textbf{zupełnie innego} ---
+      bo jej wynik nie wpływa na to, \textit{kto} jest ważny,
+      tylko \textit{jaką informację} przekazać, gdy token zostanie ``wybrany''.
+\end{itemize}
+
+\medskip
+
+\textbf{Analogia}: Trzy osoby na budowie --- na początku identyczne.
+Ale jeden dostał \textbf{łopatę} (= pozycja Q·K w równaniu),
+drugi \textbf{wiertło} (= pozycja K·Q),
+trzeci \textbf{pędzel} (= pozycja V w sumie ważonej).
+\textbf{Narzędzie} (pozycja w architekturze) determinuje ich specjalizację!
+
+\medskip
+
+\textbf{Dowód}: gdybyśmy zamienili $\mathbf{W}_Q$ z $\mathbf{W}_K$
+(ale nie zmienili architektury), sieć po treningu dałaby
+\textbf{identyczne wyniki} --- bo $\mathbf{Q}_i \cdot \mathbf{K}_j = \mathbf{K}_j \cdot \mathbf{Q}_i$
+(iloczyn skalarny jest przemienny).
+Natomiast zamiana $\mathbf{W}_Q$ z $\mathbf{W}_V$ \textbf{zepsułaby} sieć,
+bo $\mathbf{V}$ jest używane \textit{inaczej} w obliczeniach.
+
+\end{tcolorbox}
+
+% ============ MULTI-HEAD: DLACZEGO 6 GŁOWIC ============
+\begin{tcolorbox}[colback=green!3, colframe=green!60!black,
+  title=\textbf{Dlaczego 6 głowic (Multi-Head Attention)?}]
+
+Jedna głowica (jedna trójka $\mathbf{W}_Q, \mathbf{W}_K, \mathbf{W}_V$) liczy Q, K i V
+--- ale ponieważ ma \textbf{jeden} zestaw macierzy, potrafi wykrywać
+\textbf{tylko jeden typ relacji} między tokenami.
+Np.\ jeśli ta głowica nauczyła się, że $\mathbf{Q} \cdot \mathbf{K}$ daje duży wynik
+dla patchy o podobnym \textit{kolorze}, to nie potrafi \textbf{jednocześnie}
+szukać patchy \textit{bliskich przestrzennie} --- bo ma tylko jedną parę
+$(\mathbf{W}_Q, \mathbf{W}_K)$.
+
+\textbf{Rozwiązanie: 6 niezależnych głowic}, każda z własnym zestawem macierzy:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{clc}
+\toprule
+\textbf{Głowica} & \textbf{Czego się uczy szukać (przykład)} & \textbf{Macierze} \\
+\midrule
+1 & ``Kto ma podobną \textit{teksturę}?'' & $\mathbf{W}_Q^{(1)}, \mathbf{W}_K^{(1)}, \mathbf{W}_V^{(1)}$ \\
+2 & ``Kto jest \textit{blisko} przestrzennie?'' & $\mathbf{W}_Q^{(2)}, \mathbf{W}_K^{(2)}, \mathbf{W}_V^{(2)}$ \\
+3 & ``Kto ma ten sam \textit{kolor}?'' & $\mathbf{W}_Q^{(3)}, \mathbf{W}_K^{(3)}, \mathbf{W}_V^{(3)}$ \\
+4 & ``Gdzie jest \textit{krawędź} narzędzia?'' & $\mathbf{W}_Q^{(4)}, \mathbf{W}_K^{(4)}, \mathbf{W}_V^{(4)}$ \\
+5 & ``Kto wygląda jak \textit{tęczówka}?'' & $\mathbf{W}_Q^{(5)}, \mathbf{W}_K^{(5)}, \mathbf{W}_V^{(5)}$ \\
+6 & ``Kto jest w \textit{tle} (nieistotny)?'' & $\mathbf{W}_Q^{(6)}, \mathbf{W}_K^{(6)}, \mathbf{W}_V^{(6)}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Wyniki 6 głowic są \textbf{sklejane} (konkatenacja) i przepuszczane przez jedną macierz wyjściową:
+\begin{equation}
+\text{MultiHead}(\mathbf{h}) = \mathbf{W}_O \cdot
+\underbrace{\text{Concat}\!\left(
+\text{head}_1, \;
+\text{head}_2, \;
+\ldots, \;
+\text{head}_6
+\right)}_{6 \times 64 = 384}
+\end{equation}
+gdzie $\mathbf{W}_O \in \mathbb{R}^{384 \times 384}$ --- jeszcze jedna uczona macierz.
+
+\medskip
+
+\textbf{Dlaczego akurat 6?} Bo $384 / 6 = 64$, a $64$ wymiary na głowicę to sprawdzona wartość:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Wariant ViT} & \textbf{$d_{\text{model}}$} & \textbf{Głowice} & \textbf{$d_{\text{head}}$} \\
+\midrule
+ViT-Tiny & 192 & 3 & $192/3 = 64$ \\
+\textbf{ViT-Small} & \textbf{384} & \textbf{6} & $\mathbf{384/6 = 64}$ \\
+ViT-Base & 768 & 12 & $768/12 = 64$ \\
+ViT-Large & 1024 & 16 & $1024/16 = 64$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Zawsze $\mathbf{d_{\text{head}} = 64}$ --- to \textbf{stała}!
+Większe modele mają więcej głowic (więcej ``pytań'' równolegle),
+a nie większe głowice.
+
+\medskip
+
+\textbf{Ale dlaczego 6 głowic nie uczą się tego samego?}
+
+Nic nie \textit{gwarantuje}, że się nie nauczą --- ale w praktyce uczą się
+\textbf{różnych} relacji z dwóch powodów:
+
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{Losowa inicjalizacja}: każda głowica startuje z \textit{innymi} losowymi macierzami.
+      Gradient descent to optymalizacja \textbf{lokalna} --- różne punkty startowe
+      prowadzą do różnych rozwiązań (lokalnych minimów).
+
+\item \textbf{Gradient ``nagradza'' za nowe informacje}:
+      jeśli głowica 1 już nauczyła się wykrywać \textit{kolor},
+      to loss jest częściowo zaspokojony w tym kierunku.
+      Gradient dla pozostałych głowic popycha je w stronę
+      \textbf{innych} wzorców (tekstura, pozycja\ldots),
+      bo \textit{tam} jest jeszcze pole do poprawy lossu.
+\end{enumerate}
+
+\textbf{Analogia}: zespół 6 pracowników z losowo przydzielonymi zadaniami.
+Jeśli pracownik 1 już robi zadanie A dobrze, szef (gradient) nie nagradza
+pracownika 2 za \textit{powtórzenie} A --- nagroda idzie do tego, kto weźmie się za B.
+
+\medskip
+
+\textbf{Uwaga}: w praktyce głowice \textbf{nie zawsze} uczą się idealnie
+różnych rzeczy --- część jest redundantna.
+Badania (Michel et al., 2019) pokazują, że w wytrenowanym Transformerze
+można \textbf{usunąć} nawet 40\% głowic bez dużej utraty jakości (\textit{head pruning}).
+To potwierdza, że pewna nadmiarowość jest normalna.
+
+\end{tcolorbox}
+
+% ============ MINI-PRZYKŁAD ============
+\begin{tcolorbox}[colback=yellow!5, colframe=orange!70!black,
+  title=\textbf{Mini-przykład: $\mathbf{h}_i \in \mathbb{R}^{4} \to$ Q, K, V $\in \mathbb{R}^{2}$}]
+
+Niech token $\mathbf{h}_i$ ma 4 cechy: $\mathbf{h}_i = \begin{pmatrix} 0.5 \\ 1.0 \\ -0.3 \\ 0.8 \end{pmatrix}$
+
+Trzy macierze (uczone podczas treningu, tu uproszczone):
+
+\[
+\mathbf{W}_Q = \begin{pmatrix} 1 & 0 & 0 & 0 \\ 0 & 1 & 0 & 0 \end{pmatrix}, \quad
+\mathbf{W}_K = \begin{pmatrix} 0 & 0 & 1 & 0 \\ 0 & 0 & 0 & 1 \end{pmatrix}, \quad
+\mathbf{W}_V = \begin{pmatrix} 0.5 & 0.5 & 0 & 0 \\ 0 & 0 & 0.5 & 0.5 \end{pmatrix}
+\]
+
+\textbf{Obliczamy:}
+\begin{align}
+\mathbf{Q}_i &= \mathbf{W}_Q \cdot \mathbf{h}_i
+= \begin{pmatrix} 1 & 0 & 0 & 0 \\ 0 & 1 & 0 & 0 \end{pmatrix}
+\begin{pmatrix} 0.5 \\ 1.0 \\ -0.3 \\ 0.8 \end{pmatrix}
+= \begin{pmatrix} 0.5 \\ 1.0 \end{pmatrix}
+\quad \text{\small(wyciąga cechy 1--2)} \nonumber\\[6pt]
+\mathbf{K}_i &= \mathbf{W}_K \cdot \mathbf{h}_i
+= \begin{pmatrix} 0 & 0 & 1 & 0 \\ 0 & 0 & 0 & 1 \end{pmatrix}
+\begin{pmatrix} 0.5 \\ 1.0 \\ -0.3 \\ 0.8 \end{pmatrix}
+= \begin{pmatrix} -0.3 \\ 0.8 \end{pmatrix}
+\quad \text{\small(wyciąga cechy 3--4)} \nonumber\\[6pt]
+\mathbf{V}_i &= \mathbf{W}_V \cdot \mathbf{h}_i
+= \begin{pmatrix} 0.5 & 0.5 & 0 & 0 \\ 0 & 0 & 0.5 & 0.5 \end{pmatrix}
+\begin{pmatrix} 0.5 \\ 1.0 \\ -0.3 \\ 0.8 \end{pmatrix}
+= \begin{pmatrix} 0.75 \\ 0.25 \end{pmatrix}
+\quad \text{\small(uśrednia pary cech)} \nonumber
+\end{align}
+
+\textbf{Obserwacja}: ten sam token $\mathbf{h}_i$ dał \textbf{trzy różne} wektory!
+\begin{itemize}[leftmargin=2em]
+\item $\mathbf{Q}_i = (0.5, \; 1.0)$ --- ``to czego szukam'' (np. cechy krawędziowe),
+\item $\mathbf{K}_i = (-0.3, \; 0.8)$ --- ``to co oferuję'' (np. cechy kolorowe),
+\item $\mathbf{V}_i = (0.75, \; 0.25)$ --- ``moja faktyczna treść'' (uśrednione cechy).
+\end{itemize}
+
+\end{tcolorbox}
+
+% ============ ANALOGIA ============
+\begin{tcolorbox}[colback=green!3, colframe=green!60!black,
+  title=\textbf{Analogia: trzy różne okulary}]
+
+Wyobraź sobie, że $\mathbf{h}_i$ to \textbf{pełny opis} osoby (wzrost, waga, kolor oczu,
+wykształcenie, dochód, hobby\ldots).
+
+\begin{itemize}[leftmargin=2em]
+\item $\mathbf{W}_Q$ = ``okulary pytające'' --- pokazują cechy, których ta osoba \textit{szuka}
+      u innych (np. wykształcenie, hobby).
+\item $\mathbf{W}_K$ = ``okulary reklamowe'' --- pokazują cechy, które ta osoba \textit{oferuje}
+      (np. zawód, umiejętności).
+\item $\mathbf{W}_V$ = ``okulary treściowe'' --- pokazują \textit{konkretną informację},
+      którą ta osoba przekaże, gdy ktoś ją ``wybierze''.
+\end{itemize}
+
+\textbf{Kluczowy punkt}: wszystkie trzy macierze $\mathbf{W}_Q, \mathbf{W}_K, \mathbf{W}_V$
+są \textbf{parametrami uczonymi} --- na początku treningu zawierają losowe wartości.
+Sieć sama uczy się, jakie ``okulary'' są najlepsze!
+
+\end{tcolorbox}
+
+% ============ PEŁNA PROCEDURA Q*K ============
+\begin{tcolorbox}[colback=blue!3, colframe=blue!60!black,
+  title=\textbf{Pełna procedura: od $\mathbf{h}$ do wag attention (mini-przykład z 3 tokenami)}]
+
+Mamy 3 tokeny z $d=2$ (wymiar wektora Q i K \textbf{wewnątrz jednej głowicy},
+w prawdziwym ViT-Small $d = 384/6 = 64$; tu używamy $d=2$, żeby można było liczyć ręcznie).
+Po projekcji przez $\mathbf{W}_Q$ i $\mathbf{W}_K$:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Token} & $\mathbf{Q}_i$ & $\mathbf{K}_i$ \\
+\midrule
+$i=1$ (narzędzie) & $(1.0, \; 0.2)$ & $(0.1, \; 0.9)$ \\
+$i=2$ (tęczówka) & $(0.3, \; 0.8)$ & $(0.7, \; 0.5)$ \\
+$i=3$ (tło) & $(0.1, \; 0.1)$ & $(0.2, \; 0.3)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Krok 1}: Macierz podobieństw $S_{ij} = \mathbf{Q}_i \cdot \mathbf{K}_j$:
+
+\[
+S = \begin{pmatrix}
+Q_1 \cdot K_1 & Q_1 \cdot K_2 & Q_1 \cdot K_3 \\
+Q_2 \cdot K_1 & Q_2 \cdot K_2 & Q_2 \cdot K_3 \\
+Q_3 \cdot K_1 & Q_3 \cdot K_2 & Q_3 \cdot K_3
+\end{pmatrix}
+= \begin{pmatrix}
+0.28 & 0.80 & 0.26 \\
+0.75 & 0.61 & 0.30 \\
+0.10 & 0.12 & 0.05
+\end{pmatrix}
+\]
+
+Np. $S_{12} = Q_1 \cdot K_2 = 1.0 \times 0.7 + 0.2 \times 0.5 = 0.80$ --- \textbf{wysoka wartość!}
+Token 1 (narzędzie) ``szuka'' czegoś, co token 2 (tęczówka) ``oferuje''.
+
+\textbf{Krok 2}: Dzielimy przez $\sqrt{d} = \sqrt{2} \approx 1.41$:
+\[
+\tilde{S} = S / \sqrt{2} \approx \begin{pmatrix} 0.20 & 0.57 & 0.18 \\ 0.53 & 0.43 & 0.21 \\ 0.07 & 0.08 & 0.04 \end{pmatrix}
+\]
+
+\textbf{Krok 3}: Softmax (wiersz po wierszu).
+
+\textbf{Wzór na softmax} --- zamienia dowolne liczby rzeczywiste na prawdopodobieństwa (nieujemne, sumujące się do 1):
+
+\begin{equation}
+\text{softmax}(x_1, x_2, \ldots, x_n)_k = \frac{e^{x_k}}{\sum_{m=1}^{n} e^{x_m}}
+\end{equation}
+
+\textbf{Co robi?} Bierze wektor dowolnych wartości i zamienia go na rozkład prawdopodobieństwa:
+\begin{itemize}[leftmargin=2em]
+\item duże $x_k$ $\to$ duże $e^{x_k}$ $\to$ duży udział (blisko 1),
+\item małe $x_k$ $\to$ małe $e^{x_k}$ $\to$ mały udział (blisko 0),
+\item zawsze: $\sum_k \text{softmax}(x)_k = 1$ (suma wag = 100\%).
+\end{itemize}
+
+\textbf{Przykład na wierszu 1} macierzy $\tilde{S}$: \; $(\tilde{s}_{11},\; \tilde{s}_{12},\; \tilde{s}_{13}) = (0.20,\; 0.57,\; 0.18)$
+
+\[
+e^{0.20} = 1.22, \quad e^{0.57} = 1.77, \quad e^{0.18} = 1.20
+\quad \Rightarrow \quad \text{suma} = 4.19
+\]
+\[
+\alpha_{11} = \frac{1.22}{4.19} = 0.29, \quad
+\alpha_{12} = \frac{1.77}{4.19} = \mathbf{0.42}, \quad
+\alpha_{13} = \frac{1.20}{4.19} = 0.29
+\]
+
+Sprawdzenie: $0.29 + 0.42 + 0.29 = 1.00$ \; \checkmark
+
+Stosujemy softmax do każdego wiersza:
+\[
+\alpha = \text{softmax}(\tilde{S}) \approx \begin{pmatrix}
+0.29 & \mathbf{0.42} & 0.29 \\
+\mathbf{0.39} & 0.35 & 0.26 \\
+0.34 & 0.34 & 0.33
+\end{pmatrix}
+\]
+
+\textbf{Interpretacja}: Token 1 zwraca $42\%$ uwagi na token 2, bo
+$\mathbf{W}_Q$ wyciągnęła z narzędzia pytanie ``gdzie tęczówka?'',
+a $\mathbf{W}_K$ wyciągnęła z tęczówki odpowiedź ``tutaj jestem!''.
+
+Token 3 (tło) nie szuka niczego konkretnego $\rightarrow$ uwaga prawie równomierna (33\%).
+\end{tcolorbox}
+
+% ============ WIZUALIZACJA: CO W ROBI ============
+\begin{tcolorbox}[colback=gray!5, colframe=gray!60!black,
+  title=\textbf{Wizualizacja: jak $\mathbf{W}$ transformuje przestrzeń}]
+
+Mnożenie wektora przez macierz $\mathbf{W}$ to \textbf{transformacja liniowa} ---
+obrót, rozciągnięcie i/lub kompresja przestrzeni:
+
+\begin{center}
+\begin{tabular}{ccc}
+$\mathbf{h}_i \in \mathbb{R}^{384}$ & $\xrightarrow{\quad \mathbf{W}_Q \quad}$ & $\mathbf{Q}_i \in \mathbb{R}^{64}$ \\[4pt]
+\small{384 cech (``wszystko'')} & \small{projekcja} & \small{64 cechy (``pytanie'')} \\[10pt]
+\multicolumn{3}{c}{\textit{Co robi ta projekcja geometrycznie?}} \\[6pt]
+\multicolumn{3}{l}{\textbf{1.} Wybiera 64 ``najważniejszych'' kierunków z 384-wymiarowej przestrzeni} \\
+\multicolumn{3}{l}{\textbf{2.} Obraca je tak, żeby iloczyn skalarny Q $\cdot$ K mierzył ``to co trzeba''} \\
+\multicolumn{3}{l}{\textbf{3.} Różne macierze $\mathbf{W}_Q$ vs $\mathbf{W}_K$ = różne ``co trzeba''}
+\end{tabular}
+\end{center}
+
+\textbf{Ile parametrów?} Każda macierz $\mathbf{W}$ to $64 \times 384 = 24\,576$ wag.
+Dla 3 macierzy: $3 \times 24\,576 = 73\,728$.
+Ale mamy 6 głowic, każda z własnymi macierzami: $6 \times 73\,728 = 442\,368$ parametrów
+--- sam attention to $\sim 0.44$M parametrów na blok!
+
+\end{tcolorbox}
+
+Teraz budujemy wzór na wagę uwagi (attention) krok po kroku.
+
+\medskip
+
+\textbf{Krok 1: Ile token $i$ ``interesuje się'' tokenem $j$?}
+
+Liczymy \textbf{iloczyn skalarny} Query tokenu $i$ z Key tokenu $j$:
+\begin{equation}
+s_{ij} = \mathbf{Q}_i \cdot \mathbf{K}_j = \sum_{m=1}^{d} Q_i[m] \cdot K_j[m]
+\end{equation}
+
+Iloczyn skalarny mierzy \textbf{podobieństwo kierunków}:
+\begin{itemize}[leftmargin=2em]
+  \item $s_{ij}$ duże i dodatnie $\Rightarrow$ pytanie $i$ pasuje do opisu $j$ (token $j$ jest ``interesujący''),
+  \item $s_{ij} \approx 0$ $\Rightarrow$ brak związku,
+  \item $s_{ij}$ ujemne $\Rightarrow$ ``odpychają się'' (token $j$ jest nieistotny dla $i$).
+\end{itemize}
+
+\textbf{Krok 2: Normalizacja przez $\sqrt{d}$.}
+
+$d$ to \textbf{wymiar wektorów Q/K w jednej głowie attention}.
+ViT-Small ma $6$ głów, a pełny wymiar to $384$, więc każda głowa operuje na:
+\begin{equation}
+d = \frac{384}{6} = 64, \qquad \sqrt{d} = \sqrt{64} = 8
+\end{equation}
+
+\textbf{Po co dzielenie?} Iloczyn skalarny to suma $d$ składników.
+Jeśli składowe $Q$ i $K$ mają wariancję $\approx 1$,
+to wariancja sumy rośnie proporcjonalnie do $d$:
+\begin{equation}
+\text{Var}(s_{ij}) = \text{Var}\!\left(\sum_{m=1}^{d} Q_i[m] \cdot K_j[m]\right) \approx d
+\end{equation}
+
+Więc $s_{ij}$ ma odchylenie standardowe $\approx \sqrt{d}$.
+Dzielenie przez $\sqrt{d}$ sprowadza skalę z powrotem do $\approx 1$:
+\begin{equation}
+\tilde{s}_{ij} = \frac{s_{ij}}{\sqrt{d}} = \frac{\mathbf{Q}_i \cdot \mathbf{K}_j}{\sqrt{d}}
+\quad \Rightarrow \quad \text{Var}(\tilde{s}_{ij}) \approx 1
+\end{equation}
+
+Bez tego dzielenia: $s_{ij}$ miałoby wartości rzędu $\pm\sqrt{64} = \pm 8$,
+a $e^8 \approx 2981$ vs $e^{-8} \approx 0.0003$
+--- softmax dałby prawie \textit{one-hot} (jeden token dostaje $\approx 100\%$ uwagi).
+Po dzieleniu: $\tilde{s}_{ij}$ ma wartości rzędu $\pm 1$, a $e^1 \approx 2.7$ vs $e^{-1} \approx 0.37$
+--- softmax daje ``miękkie'' wagi i sieć może patrzeć na \textit{wielu} tokenów.
+
+\textbf{Krok 3: Zamiana na prawdopodobieństwa (softmax).}
+
+Mamy wyniki $\tilde{s}_{i1}, \tilde{s}_{i2}, \ldots, \tilde{s}_{i,197}$ --- jak bardzo
+token $i$ interesuje się każdym z $197$ tokenów.
+Chcemy zamienić je na \textbf{wagi sumujące się do 1} (żeby wynik był ważoną średnią).
+
+Funkcja \textbf{softmax} robi dokładnie to:
+\begin{equation}
+\text{softmax}(x_j) = \frac{e^{x_j}}{\sum_{k} e^{x_k}}
+\end{equation}
+
+Dlaczego $e^x$, a nie np.\ samo $x$?
+\begin{itemize}[leftmargin=2em]
+  \item $e^x > 0$ zawsze --- wagi są nieujemne (prawdopodobieństwa),
+  \item $e^x$ rośnie \textit{wykładniczo} --- duże $\tilde{s}_{ij}$ dominują
+        (sieć ``skupia uwagę'' na najważniejszych tokenach),
+  \item dzielenie przez sumę gwarantuje $\sum_j \alpha_{ij} = 1$.
+\end{itemize}
+
+\textbf{Krok 4: Składamy wszystko razem.}
+
+Podstawiamy $x_j = \tilde{s}_{ij} = \mathbf{Q}_i \cdot \mathbf{K}_j / \sqrt{d}$ do softmax:
+\begin{equation}
+\boxed{
+\alpha_{ij} = \frac{e^{\,\mathbf{Q}_i \cdot \mathbf{K}_j \,/\, \sqrt{d}}}
+{\sum_{k=1}^{197} e^{\,\mathbf{Q}_i \cdot \mathbf{K}_k \,/\, \sqrt{d}}}
+}
+\end{equation}
+
+\textbf{Przykład liczbowy} (uproszczony, 3 tokeny, $d=2$):
+\begin{align}
+\mathbf{Q}_1 &= (1,\; 0), \quad
+\mathbf{K}_1 = (1,\; 0), \quad
+\mathbf{K}_2 = (0,\; 1), \quad
+\mathbf{K}_3 = (-1,\; 0) \nonumber\\[0.3em]
+s_{11} &= 1 \cdot 1 + 0 \cdot 0 = 1, \quad
+s_{12} = 1 \cdot 0 + 0 \cdot 1 = 0, \quad
+s_{13} = 1 \cdot ({-1}) + 0 \cdot 0 = {-1} \nonumber\\[0.3em]
+\tilde{s}_{11} &= 1/\sqrt{2} \approx 0.71, \quad
+\tilde{s}_{12} = 0/\sqrt{2} = 0, \quad
+\tilde{s}_{13} = {-1}/\sqrt{2} \approx {-0.71} \nonumber\\[0.3em]
+e^{0.71} &\approx 2.03, \quad e^{0} = 1, \quad e^{-0.71} \approx 0.49
+\quad \Rightarrow \quad \text{suma} = 3.52 \nonumber\\[0.3em]
+\alpha_{11} &= 2.03 / 3.52 \approx \mathbf{0.58}, \quad
+\alpha_{12} = 1 / 3.52 \approx \mathbf{0.28}, \quad
+\alpha_{13} = 0.49 / 3.52 \approx \mathbf{0.14}
+\end{align}
+
+Token 1 patrzy głównie na siebie (58\%), trochę na token 2 (28\%), prawie ignoruje token 3 (14\%)
+--- bo Query 1 jest najbardziej ``zgodne'' z Key 1.
+
+\medskip
+
+\textbf{Krok 5: Ważona suma wartości.}
+
+Nowa wartość tokenu $i$:
+\begin{equation}
+\mathbf{h}_i' = \sum_{j=1}^{197} \alpha_{ij}\,\mathbf{V}_j
+= \alpha_{i1}\,\mathbf{V}_1 + \alpha_{i2}\,\mathbf{V}_2 + \cdots + \alpha_{i,197}\,\mathbf{V}_{197}
+\end{equation}
+
+Token $i$ \textbf{zbiera informację} od wszystkich tokenów,
+ale \textit{więcej} od tych, na które ``patrzy'' (wysokie $\alpha_{ij}$).
+
+\begin{keyinsight}[Intuicja: self-attention to ``rozmowa'']
+Każdy token ``rozmawia'' ze wszystkimi innymi:
+\begin{itemize}
+  \item Token patcha z tęczówką pyta (Q): ``Kto jeszcze jest tęczówką?''
+  \item Inne patche tęczówki odpowiadają (K): ``Ja!'' $\Rightarrow$ wysoki $\alpha_{ij}$
+  \item Token zbiera ich treść (V) i aktualizuje swoją reprezentację
+  \item \textbf{[CLS]} pyta WSZYSTKICH i zbiera globalne podsumowanie
+\end{itemize}
+\end{keyinsight}
+
+\subsubsection*{(b) MLP: przetwarzanie lokalne}
+
+Po attention każdy token przechodzi przez sieć MLP (niezależnie od innych tokenów):
+\begin{equation}
+\text{MLP}(\mathbf{h}) = \mathbf{W}_2\,\text{GELU}(\mathbf{W}_1 \mathbf{h} + \mathbf{b}_1) + \mathbf{b}_2
+\end{equation}
+gdzie $\mathbf{W}_1 \in \mathbb{R}^{1536 \times 384}$ (rozszerzenie $4\times$),
+$\mathbf{W}_2 \in \mathbb{R}^{384 \times 1536}$ (kompresja z powrotem).
+
+\medskip
+
+\begin{tcolorbox}[
+  colback=lejepaBlue!5,
+  colframe=lejepaBlue!80,
+  fonttitle=\bfseries,
+  title={Dlaczego takie wymiary? Rozszerzenie $4\times$ i kompresja},
+  breakable,
+]
+
+\textbf{Skąd $1536 = 4 \times 384$?}
+
+MLP działa jak \textbf{butelka} (bottleneck odwrócony):
+
+\begin{center}
+\begin{tabular}{ccccc}
+$\mathbf{h} \in \mathbb{R}^{384}$
+& $\xrightarrow{\;\mathbf{W}_1\;}$
+& $\mathbb{R}^{1536}$
+& $\xrightarrow{\;\mathbf{W}_2\;}$
+& $\mathbf{h}_{\text{out}} \in \mathbb{R}^{384}$ \\
+\small{wejście} & \small{rozszerzenie $4\times$} & \small{ukryta warstwa} & \small{kompresja $4\times$} & \small{wyjście}
+\end{tabular}
+\end{center}
+
+\textbf{Dlaczego nie zostać przy $384$?}
+Attention zbiera informację \textit{między} tokenami (``kto jest obok kogo'').
+Ale potem każdy token musi tę informację \textbf{przetworzyć lokalnie}
+--- np.\ ``widzę krawędź narzędzia + czerwony kolor + bliskość tęczówki $\Rightarrow$
+to jest końcówka phaco''.
+
+Takie \textbf{nieliniowe kombinowanie cech} wymaga dużo parametrów.
+Rozszerzenie do $1536$ wymiarów daje sieci ``przestrzeń roboczą'',
+w której może tworzyć skomplikowane cechy pośrednie:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{ccp{7cm}}
+\toprule
+\textbf{Warstwa} & \textbf{Wymiar} & \textbf{Co robi?} \\
+\midrule
+$\mathbf{W}_1 \mathbf{h} + \mathbf{b}_1$ & $384 \to 1536$ &
+\textbf{Rozszerzenie}: tworzy $1536$ ``kandydatów na cechy''.
+Każdy to inna kombinacja wejściowych $384$ wymiarów. \\
+$\text{GELU}(\cdot)$ & $1536 \to 1536$ &
+\textbf{Nieliniowość}: wyłącza (zeruje) niepotrzebnych kandydatów,
+wzmacnia przydatnych.
+Bez tego MLP byłby zwykłym mnożeniem macierzy
+(dwa mnożenia macierzy = jedno mnożenie --- bez sensu). \\
+$\mathbf{W}_2(\cdot) + \mathbf{b}_2$ & $1536 \to 384$ &
+\textbf{Kompresja}: z $1536$ przetworzonych cech wybiera
+najważniejsze i pakuje z powrotem do $384$ wymiarów. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\end{tcolorbox}
+
+% ============ GELU: SZCZEGÓŁOWE WYJAŚNIENIE ============
+\begin{tcolorbox}[colback=blue!3, colframe=blue!60!black,
+  title=\textbf{GELU: czym jest i jak działa?}]
+
+Funkcja GELU (Gaussian Error Linear Unit) to \textbf{gładka wersja ReLU}:
+
+\begin{equation}
+\text{GELU}(x) = x \cdot \Phi(x) \qquad \text{gdzie } \Phi(x) = \frac{1}{2}\left[1 + \text{erf}\!\left(\frac{x}{\sqrt{2}}\right)\right]
+\end{equation}
+
+$\Phi(x)$ to \textbf{dystrybuanta rozkładu normalnego} --- prawdopodobieństwo,
+że zmienna losowa z $\mathcal{N}(0,1)$ jest $\leq x$.
+
+\textbf{Intuicja}: GELU mnoży wartość $x$ przez ``prawdopodobieństwo, że $x$ jest ważne'':
+\begin{itemize}[leftmargin=2em]
+\item Jeśli $x \gg 0$: \; $\Phi(x) \approx 1$ \; $\Rightarrow$ \; $\text{GELU}(x) \approx x$ \quad (przepuść bez zmian)
+\item Jeśli $x \ll 0$: \; $\Phi(x) \approx 0$ \; $\Rightarrow$ \; $\text{GELU}(x) \approx 0$ \quad (wycisz)
+\item Jeśli $x \approx 0$: \; $\Phi(x) \approx 0.5$ \; $\Rightarrow$ \; $\text{GELU}(x) \approx 0.5x$ \quad (\textbf{łagodne tłumienie})
+\end{itemize}
+
+\textbf{Porównanie wartości:}
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{r|ccc}
+$x$ & $\text{ReLU}(x)$ & $\Phi(x)$ & $\text{GELU}(x) = x\Phi(x)$ \\
+\hline
+$-3$ & $0$ & $0.001$ & $-0.004$ \\
+$-1$ & $0$ & $0.159$ & $-0.159$ \\
+$0$ & $0$ & $0.500$ & $0$ \\
+$+1$ & $1$ & $0.841$ & $0.841$ \\
+$+3$ & $3$ & $0.999$ & $2.996$ \\
+\end{tabular}
+\end{center}
+
+\textbf{Dlaczego GELU a nie ReLU?}
+\begin{itemize}[leftmargin=2em]
+\item \textbf{ReLU}: ostro zeruje wszystko $<0$ (pochodna = 0 dla $x<0$ $\to$ ``martwe neurony'')
+\item \textbf{GELU}: łagodnie tłumi --- wartości bliskie zeru są \textit{częściowo} przepuszczane,
+      co daje lepszy przepływ gradientu.
+\end{itemize}
+
+\begin{center}
+\includegraphics[width=0.95\textwidth]{figures/gelu_activation.pdf}
+\captionof{figure}{Lewo: porównanie GELU z ReLU --- GELU łagodnie tłumi wartości ujemne zamiast
+ostro je zerować. Prawo: efekt GELU na rozkład wartości --- wartości ujemne są ``spychane''
+w kierunku zera, ale nie wycinane.}
+\label{fig:gelu}
+\end{center}
+
+\end{tcolorbox}
+
+\begin{tcolorbox}[
+  colback=lejepaBlue!5,
+  colframe=lejepaBlue!80,
+  fonttitle=\bfseries,
+  title={Dlaczego akurat rozszerzenie $4\times$?},
+  breakable,
+]
+
+\textbf{Dlaczego akurat $4\times$?}
+To wartość ustalona empirycznie przez Vaswani et~al.\ (2017).
+Testowano $1\times$, $2\times$, $4\times$, $8\times$:
+\begin{itemize}[leftmargin=2em]
+  \item $1\times$ lub $2\times$: za mało pojemności --- sieć nie potrafi tworzyć złożonych cech,
+  \item $4\times$: dobry kompromis wydajność/koszt,
+  \item $8\times$: marginalna poprawa, ale $2\times$ więcej parametrów i obliczeń.
+\end{itemize}
+Wartość $4\times$ stała się \textbf{standardem} w prawie wszystkich Transformerach
+(ViT, BERT, GPT, LLaMA, \ldots).
+
+\textbf{Ile to parametrów?}
+\begin{align}
+\mathbf{W}_1&: \; 1536 \times 384 = 589\,824 \text{ wag} + 1536 \text{ biasów} \nonumber\\
+\mathbf{W}_2&: \; 384 \times 1536 = 589\,824 \text{ wag} + 384 \text{ biasy} \nonumber\\
+&\text{Razem na 1 blok MLP:} \approx \mathbf{1.18\text{M}} \text{ parametrów}
+\end{align}
+
+Przy $12$ blokach: $12 \times 1.18\text{M} \approx 14.2\text{M}$
+--- to \textbf{ponad połowa} wszystkich $\sim 22$M parametrów ViT-Small!
+
+\end{tcolorbox}
+
+\subsubsection*{Pełny blok z residualami i normalizacją}
+
+Każdy z 12 bloków Transformera wykonuje dwie operacje --- Self-Attention i MLP ---
+ale \textbf{nie zastępuje} wejścia wynikiem. Zamiast tego \textbf{dodaje} wynik do wejścia:
+
+\begin{equation}
+\boxed{
+\begin{aligned}
+\mathbf{h}' &= \mathbf{h} + \text{Self-Attention}(\text{LayerNorm}(\mathbf{h})) \\
+\mathbf{h}^{(\ell+1)} &= \mathbf{h}' + \text{MLP}(\text{LayerNorm}(\mathbf{h}'))
+\end{aligned}
+}
+\end{equation}
+
+To ``$+$'' w równaniu to \textbf{połączenie rezydualne} (residual connection) ---
+najważniejszy trick, który umożliwia trenowanie głębokich sieci.
+
+% --- SCHEMAT BLOKOWY ---
+\begin{tcolorbox}[colback=blue!3, colframe=blue!60!black, title=\textbf{Schemat przepływu przez jeden blok Transformera}]
+
+\begin{center}
+\begin{tabular}{c}
+\texttt{Wejście: h} \\[4pt]
+$\downarrow$ \\[2pt]
+\fbox{\texttt{LayerNorm}} \\[2pt]
+$\downarrow$ \\[2pt]
+\fbox{\texttt{Self-Attention}} \\[2pt]
+$\downarrow$ \quad wynik = $\Delta_1$ \\[2pt]
+\texttt{h' = h + } $\Delta_1$ \quad $\longleftarrow$ \textit{residual: dodaj do wejścia!} \\[8pt]
+$\downarrow$ \\[2pt]
+\fbox{\texttt{LayerNorm}} \\[2pt]
+$\downarrow$ \\[2pt]
+\fbox{\texttt{MLP}} \\[2pt]
+$\downarrow$ \quad wynik = $\Delta_2$ \\[2pt]
+\texttt{h\textsuperscript{(next)} = h' + } $\Delta_2$ \quad $\longleftarrow$ \textit{residual: dodaj do wejścia!} \\[4pt]
+$\downarrow$ \\[2pt]
+\texttt{Wyjście: h\textsuperscript{(next)}} \\
+\end{tabular}
+\end{center}
+
+\textbf{Kluczowa obserwacja:} Attention i MLP nie produkują nowej wartości
+od zera --- produkują jedynie \textbf{poprawkę} ($\Delta$), która jest
+\textbf{dodawana} do oryginalnego sygnału.
+
+\end{tcolorbox}
+
+% --- DLACZEGO RESIDUALNE ---
+\begin{tcolorbox}[colback=red!3, colframe=red!60!black, title=\textbf{Problem: dlaczego bez residuali sieć nie działa?}]
+
+\textbf{Bez połączeń rezydualnych} (naiwne podejście):
+\[
+\mathbf{h}^{(\ell+1)} = f_\ell(\mathbf{h}^{(\ell)}) \quad \text{(każda warstwa \textit{zastępuje} wejście)}
+\]
+
+Gradient po 12 warstwach (reguła łańcuchowa):
+\[
+\frac{\partial \mathcal{L}}{\partial \mathbf{h}^{(0)}}
+= \underbrace{\frac{\partial f_{12}}{\partial \mathbf{h}^{(11)}} \cdot
+\frac{\partial f_{11}}{\partial \mathbf{h}^{(10)}} \cdot \;\ldots\; \cdot
+\frac{\partial f_{1}}{\partial \mathbf{h}^{(0)}}}_{12 \text{ mnożeń}}
+\]
+
+\textbf{Przykład liczbowy:} Jeśli każda pochodna $\approx 0.5$:
+\[
+\underbrace{0.5 \times 0.5 \times \ldots \times 0.5}_{12 \text{ razy}} = 0.5^{12} = 0.000244
+\]
+Gradient \textbf{zanika} $\rightarrow$ pierwsze warstwy prawie się nie uczą!
+
+A jeśli każda pochodna $\approx 2.0$:
+\[
+2.0^{12} = 4096 \quad \rightarrow \quad \text{gradient \textbf{eksploduje!}}
+\]
+\end{tcolorbox}
+
+% --- Z RESIDUALAMI ---
+\begin{tcolorbox}[colback=green!3, colframe=green!60!black, title=\textbf{Rozwiązanie: połączenie rezydualne jako ``autostrada'' dla gradientu}]
+
+\textbf{Z połączeniem rezydualnym}:
+\[
+\mathbf{h}^{(\ell+1)} = \mathbf{h}^{(\ell)} + f_\ell(\mathbf{h}^{(\ell)})
+\]
+
+Pochodna jednej warstwy (znana reguła $\partial(x+c)/\partial x$):
+\[
+\frac{\partial \mathbf{h}^{(\ell+1)}}{\partial \mathbf{h}^{(\ell)}}
+= \underbrace{1}_{\text{residual}} + \frac{\partial f_\ell}{\partial \mathbf{h}^{(\ell)}}
+\]
+
+To ``$1$'' jest kluczowe! Gradient po 12 warstwach:
+\[
+\frac{\partial \mathcal{L}}{\partial \mathbf{h}^{(0)}}
+= \prod_{\ell=0}^{11} \left(1 + \frac{\partial f_\ell}{\partial \mathbf{h}^{(\ell)}}\right)
+\]
+
+Nawet jeśli $\frac{\partial f_\ell}{\partial \mathbf{h}^{(\ell)}} \approx 0$ (warstwa ``nic nie robi''),
+gradient $\approx 1^{12} = 1$ --- \textbf{przepływa bez strat!}
+
+\vspace{6pt}
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{|l|c|c|}
+\hline
+& \textbf{Bez residuali} & \textbf{Z residualami} \\
+\hline
+Gradient po 12 warstwach & $\prod \frac{\partial f_\ell}{\partial h}$ & $\prod (1 + \frac{\partial f_\ell}{\partial h})$ \\
+\hline
+Jeśli $\frac{\partial f_\ell}{\partial h} = 0.5$ & $0.5^{12} = 0.00024$ & $1.5^{12} = 129.7$ \\
+\hline
+Jeśli $\frac{\partial f_\ell}{\partial h} = 0$ & $0^{12} = 0$ (martwa sieć) & $1^{12} = 1$ (OK!) \\
+\hline
+\end{tabular}
+\end{center}
+\end{tcolorbox}
+
+% --- ANALOGIA ---
+\begin{tcolorbox}[colback=yellow!5, colframe=orange!70!black, title=\textbf{Analogia: autostrada z $12$ stacjami}]
+
+Wyobraź sobie \textbf{autostradę} prowadzącą sygnał od wejścia do wyjścia:
+
+\begin{center}
+\begin{tabular}{ccccccc}
+$\mathbf{h}^{(0)}$ & $\xrightarrow{\text{autostrada}}$ & $\mathbf{h}^{(1)}$
+& $\xrightarrow{\text{autostrada}}$ & $\cdots$
+& $\xrightarrow{\text{autostrada}}$ & $\mathbf{h}^{(12)}$ \\[4pt]
+& $\uparrow$ \small{+$\Delta_1$} & & $\uparrow$ \small{+$\Delta_2$} & & $\uparrow$ \small{+$\Delta_{12}$} & \\[2pt]
+& \fbox{\small{Blok 1}} & & \fbox{\small{Blok 2}} & & \fbox{\small{Blok 12}} & \\
+\end{tabular}
+\end{center}
+
+\begin{itemize}[leftmargin=2em]
+\item \textbf{Autostrada}: oryginalny sygnał \textbf{zawsze przepływa} od $\mathbf{h}^{(0)}$ do $\mathbf{h}^{(12)}$.
+\item \textbf{Stacje} (bloki): każda dodaje swoją poprawkę $\Delta_\ell$, ale \textbf{nie blokuje} ruchu.
+\item Nawet jeśli stacja ``zepsuje się'' ($\Delta_\ell \approx 0$), sygnał jedzie dalej.
+\item Gradient wraca tą samą autostradą --- ma \textbf{gwarantowaną drogę} do pierwszych warstw.
+\end{itemize}
+
+\textbf{Bez residuali}: każda stacja to \textbf{bramka} --- sygnał musi przejść przez każdą.
+Jeśli jedna bramka blokuje, wszystko staje.
+\end{tcolorbox}
+
+% --- LAYERNORM ---
+\begin{tcolorbox}[colback=gray!5, colframe=gray!60!black, title=\textbf{Co robi LayerNorm?}]
+
+W równaniu widzimy, że przed Attention i MLP stosujemy $\text{LayerNorm}(\mathbf{h})$.
+\textbf{Problem}: po wielu warstwach wartości w wektorze $\mathbf{h}$ mogą stać się bardzo duże
+(np.\ rzędu tysięcy) lub bardzo małe (rzędu $10^{-6}$). To destabilizuje trening ---
+softmax i GELU działają dobrze tylko dla wartości w ``rozsądnym'' zakresie.
+
+\textbf{Rozwiązanie}: LayerNorm \textbf{normalizuje} wektor do średniej $\approx 0$
+i wariancji $\approx 1$ przed każdą operacją.
+
+\subsubsection*{Wzór krok po kroku}
+
+Dany wektor $\mathbf{h} = (h_1, h_2, \ldots, h_d) \in \mathbb{R}^d$ (w ViT-Small $d = 384$):
+
+\textbf{Krok 1 --- Średnia} (centrowanie):
+\[
+\mu = \frac{1}{d}\sum_{i=1}^{d} h_i
+\]
+
+\textbf{Krok 2 --- Wariancja} (jak bardzo wartości ``rozbiegają się'' od średniej):
+\[
+\sigma^2 = \frac{1}{d}\sum_{i=1}^{d} (h_i - \mu)^2
+\]
+
+\textbf{Krok 3 --- Normalizacja} (centruj + podziel przez odchylenie):
+\[
+\hat{h}_i = \frac{h_i - \mu}{\sqrt{\sigma^2 + \epsilon}}
+\]
+
+$\epsilon = 10^{-5}$ to mała stała zapobiegająca dzieleniu przez zero
+(gdyby $\sigma^2 = 0$, czyli wszystkie $h_i$ były identyczne).
+
+\textbf{Krok 4 --- Skalowanie i przesunięcie} (uczone parametry):
+\begin{equation}
+\text{LayerNorm}(\mathbf{h})_i = \gamma_i \cdot \hat{h}_i + \beta_i
+\end{equation}
+
+Parametry $\gamma_i, \beta_i$ (po jednym na każdy wymiar) są \textbf{uczone} ---
+sieć sama decyduje, jaka skala i przesunięcie są optymalne.
+
+\subsubsection*{Przykład liczbowy}
+
+Niech $\mathbf{h} = (2.0, \; 4.0, \; 6.0, \; 8.0)$ (uproszczenie --- $d = 4$ zamiast 384):
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{ll}
+\toprule
+\textbf{Krok} & \textbf{Obliczenie} \\
+\midrule
+Średnia $\mu$ & $\frac{2+4+6+8}{4} = 5.0$ \\[4pt]
+Wariancja $\sigma^2$ & $\frac{(2{-}5)^2 + (4{-}5)^2 + (6{-}5)^2 + (8{-}5)^2}{4} = \frac{9+1+1+9}{4} = 5.0$ \\[4pt]
+Odchylenie $\sqrt{\sigma^2}$ & $\sqrt{5.0} \approx 2.236$ \\[4pt]
+$\hat{h}_1 = \frac{2.0 - 5.0}{2.236}$ & $= -1.34$ \\[2pt]
+$\hat{h}_2 = \frac{4.0 - 5.0}{2.236}$ & $= -0.45$ \\[2pt]
+$\hat{h}_3 = \frac{6.0 - 5.0}{2.236}$ & $= +0.45$ \\[2pt]
+$\hat{h}_4 = \frac{8.0 - 5.0}{2.236}$ & $= +1.34$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Wynik}: $(2, 4, 6, 8) \to (-1.34, \; -0.45, \; +0.45, \; +1.34)$
+
+Sprawdzenie: średnia $\approx 0$ \checkmark, \; wariancja $\approx 1$ \checkmark
+
+Potem $\gamma$ i $\beta$ mogą przeskalować wynik, np.\ przy $\gamma_i = 2, \beta_i = 0.5$:
+\[
+\text{LayerNorm}(\mathbf{h})_1 = 2 \times (-1.34) + 0.5 = -2.18
+\]
+
+\subsubsection*{Dlaczego LayerNorm a nie BatchNorm?}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{lcc}
+\toprule
+& \textbf{BatchNorm} & \textbf{LayerNorm} \\
+\midrule
+Normalizuje po & próbkach w batchu & wymiarach jednego tokenu \\
+Zależy od batch size? & tak & \textbf{nie} \\
+Działa przy batch=1? & źle & \textbf{dobrze} \\
+Standard w Transformerach? & nie & \textbf{tak} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+LayerNorm normalizuje \textbf{wewnątrz jednego tokenu} (po 384 wymiarach),
+niezależnie od tego, ile próbek jest w batchu.
+Dzięki temu wynik jest \textbf{deterministyczny} --- ten sam obraz zawsze
+daje ten sam wynik, niezależnie od reszty batcha.
+
+\end{tcolorbox}
+
+% --- PODSUMOWANIE PEŁNEGO BLOKU ---
+\begin{tcolorbox}[colback=blue!3, colframe=blue!70!black, title=\textbf{Podsumowanie: co robi jeden blok Transformera}]
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{LayerNorm} --- stabilizuje wartości
+\item \textbf{Self-Attention} --- tokeny ``rozmawiają'' ze sobą $\rightarrow$ poprawka $\Delta_1$
+\item \textbf{Residual} --- dodaj $\Delta_1$ do wejścia: $\mathbf{h}' = \mathbf{h} + \Delta_1$
+\item \textbf{LayerNorm} --- ponowna stabilizacja
+\item \textbf{MLP} --- każdy token przetwarzany osobno $\rightarrow$ poprawka $\Delta_2$
+\item \textbf{Residual} --- dodaj $\Delta_2$: $\mathbf{h}^{(\ell+1)} = \mathbf{h}' + \Delta_2$
+\end{enumerate}
+Ten cykl powtarza się \textbf{12 razy} --- na końcu token [CLS] zawiera
+\textbf{bogate, wielopoziomowe} cechy wizualne.
+\end{tcolorbox}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/vit_pipeline.pdf}
+\caption{Pełny pipeline ViT-Small. Lewo: przepływ danych od obrazu do embeddingu.
+Prawo: szczegóły self-attention (Q, K, V) i MLP wewnątrz bloku.
+Na dole: notatka o inicjalizacji losowej.}
+\label{fig:pipeline}
+\end{figure}
+
+\subsection{Krok 6: Wyjście — embedding}
+
+Po $12$ blokach token [CLS] ``widział'' cały obraz przez wielokrotne attention.
+Jego wartość to \textbf{globalny embedding obrazu}:
+
+\begin{equation}
+\boxed{
+\mathbf{z} = f_\theta(\mathbf{x}) = \mathbf{h}_{\text{CLS}}^{(12)} \in \mathbb{R}^{384}
+}
+\end{equation}
+
+\subsection{Trening od zera: od szumu do sensownych cech}
+
+Gdy inicjalizujemy ViT od zera (\textbf{random init}):
+
+\begin{enumerate}
+  \item \textbf{Epoka 0}: Wszystkie macierze ($\mathbf{W}_Q, \mathbf{W}_K, \mathbf{W}_V, \mathbf{W}_{\text{patch}}, \ldots$)
+        mają \textbf{losowe wartości}.
+        Attention jest \textbf{równomierny} — każdy token ``patrzy'' na wszystkich po równo.
+        Embedding = \textbf{losowy szum} (bezużyteczny).
+
+  \item \textbf{Epoki 1--20}: Sieć uczy się podstaw:
+  \begin{itemize}
+    \item $\mathbf{W}_{\text{patch}}$: jakie cechy wyciągać z pikseli (krawędzie, kolory),
+    \item Embeddingi pozycyjne: geometria siatki patchy,
+    \item Attention: na co warto patrzeć (a na co nie).
+  \end{itemize}
+
+  \item \textbf{Epoki 20--100}: Cechy stają się semantyczne:
+  \begin{itemize}
+    \item Attention skupia się na istotnych regionach (narzędzie, tęczówka),
+    \item [CLS] zbiera sensowne podsumowanie sceny,
+    \item Embedding $\mathbf{z}$ zaczyna \textbf{separować} różne typy scen.
+  \end{itemize}
+\end{enumerate}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/vit_attention.pdf}
+\caption{\textbf{Lewo}: Mapa attention [CLS] — czerwone patche to te, na które [CLS] ``patrzy'' najsilniej.
+\textbf{Środek}: Macierz attention (fragment) — wiersz = kto pyta, kolumna = kto odpowiada.
+\textbf{Prawo}: Krzywe treningu od zera — loss maleje, attention staje się ostrzejszy,
+jakość embeddingów rośnie.}
+\label{fig:attention}
+\end{figure}
+
+\begin{warningbox}[Dlaczego self-supervised (bez etykiet)?]
+W LeJEPA ViT nie ma etykiet (``to jest incision'', ``to jest phaco'').
+Zamiast tego uczy się przez \textbf{predykcję widoków}:
+\begin{itemize}
+  \item Dostaje dwa ``widoki'' tego samego kadru (różne augmentacje),
+  \item Musi nauczyć się, że te widoki \textbf{powinny mieć podobny embedding},
+  \item To zmusza ViT do wyciągania \textbf{semantycznych cech} (nie pikseli),
+  \item SIGReg dodatkowo wymusza, żeby embeddingi miały rozkład $\mathcal{N}(\mathbf{0}, \mathbf{I})$.
+\end{itemize}
+\end{warningbox}
+
+%% ============================================================
+\section{Teoria wariancji: od podstaw}
+\label{sec:wariancja}
+%% ============================================================
+
+Zanim przejdziemy do rozkładu Gaussa, musimy zrozumieć pojęcia,
+z których jest zbudowany: \textbf{wariancja}, \textbf{kowariancja}
+i \textbf{macierz kowariancji}.
+
+\subsection{Wariancja: jak bardzo dane się rozrzucają?}
+
+\begin{definition}[Średnia (wartość oczekiwana)]
+Dla $N$ pomiarów $x_1, x_2, \ldots, x_N$:
+\begin{equation}
+\mu = \frac{1}{N}\sum_{i=1}^{N} x_i
+\end{equation}
+To ``środek ciężkości'' danych.
+\end{definition}
+
+\begin{definition}[Wariancja]
+\begin{equation}
+\boxed{
+\sigma^2 = \frac{1}{N}\sum_{i=1}^{N} (x_i - \mu)^2
+}
+\end{equation}
+Wariancja to \textbf{średni kwadrat odległości} od średniej.
+\end{definition}
+
+\textbf{Dlaczego kwadrat?} Bo odchylenia w górę ($x_i > \mu$) i w dół ($x_i < \mu$)
+by się nawzajem skasowały. Kwadrat sprawia, że każde odchylenie ``liczy się'' pozytywnie.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/variance_explanation.pdf}
+\caption{\textbf{Lewo}: Mała wariancja — punkty skupione blisko średniej.
+\textbf{Środek}: Duża wariancja — punkty rozrzucone daleko.
+\textbf{Prawo}: Wizualizacja wzoru — fioletowe strzałki to odchylenia $(x_i - \mu)$,
+wariancja to średnia ich kwadratów.}
+\label{fig:variance}
+\end{figure}
+
+\begin{definition}[Odchylenie standardowe]
+\begin{equation}
+\sigma = \sqrt{\sigma^2}
+\end{equation}
+To ``typowa odległość'' punktu od średniej, w oryginalnych jednostkach.
+\end{definition}
+
+\begin{remark}[Przykład liczbowy]
+Dane: $x = \{2, 3, 5, 7, 8\}$.
+\begin{align}
+\mu &= \frac{2+3+5+7+8}{5} = 5 \\
+\sigma^2 &= \frac{(2-5)^2 + (3-5)^2 + (5-5)^2 + (7-5)^2 + (8-5)^2}{5}
+= \frac{9 + 4 + 0 + 4 + 9}{5} = \frac{26}{5} = 5.2 \\
+\sigma &= \sqrt{5.2} \approx 2.28
+\end{align}
+Interpretacja: typowy punkt odchyla się o $\approx 2.3$ od średniej $5$.
+\end{remark}
+
+\subsection{Kowariancja: czy dwie zmienne ``chodzą razem''?}
+
+Gdy mamy \textbf{dwie} zmienne $z_1$ i $z_2$ (np.\ dwa wymiary embeddingu),
+chcemy wiedzieć: \textit{czy gdy $z_1$ rośnie, $z_2$ też rośnie?}
+
+\begin{definition}[Kowariancja]
+\begin{equation}
+\boxed{
+\mathrm{Cov}(z_1, z_2) = \sigma_{12} = \frac{1}{N}\sum_{i=1}^{N}
+(z_{1,i} - \mu_1)(z_{2,i} - \mu_2)
+}
+\end{equation}
+\end{definition}
+
+\textbf{Interpretacja znaku}:
+\begin{itemize}
+  \item $\sigma_{12} > 0$: $z_1$ rośnie $\Rightarrow$ $z_2$ też rośnie (\textbf{korelacja dodatnia}),
+  \item $\sigma_{12} = 0$: brak związku liniowego (\textbf{niezależne} lub ortogonalne),
+  \item $\sigma_{12} < 0$: $z_1$ rośnie $\Rightarrow$ $z_2$ maleje (\textbf{korelacja ujemna}).
+\end{itemize}
+
+\begin{remark}
+Wariancja to specjalny przypadek kowariancji zmiennej z samą sobą:
+$\mathrm{Cov}(z_1, z_1) = \sigma_1^2$ (wariancja $z_1$).
+\end{remark}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/covariance_types.pdf}
+\caption{Trzy typy kowariancji. Czerwone strzałki: kierunki główne (wektory własne).
+\textbf{Lewo}: $\sigma_{12} > 0$ — punkty ciągną się od lewego-dołu do prawego-góry.
+\textbf{Środek}: $\sigma_{12} = 0$ — okrągła chmurka, brak związku.
+\textbf{Prawo}: $\sigma_{12} < 0$ — od lewego-góry do prawego-dołu.}
+\label{fig:covariance}
+\end{figure}
+
+\subsection{Macierz kowariancji: pełny obraz w $K$ wymiarach}
+
+Gdy mamy $K$ zmiennych ($K$ wymiarów embeddingu), potrzebujemy
+\textbf{jednej struktury}, która zbiera \textit{wszystkie} wariancje i kowariancje.
+
+\begin{definition}[Macierz kowariancji]
+Dla wektora $\mathbf{z} = (z_1, \ldots, z_K)^\top$:
+\begin{equation}
+\boxed{
+\boldsymbol{\Sigma} = \begin{pmatrix}
+\sigma_1^2 & \sigma_{12} & \cdots & \sigma_{1K} \\
+\sigma_{12} & \sigma_2^2 & \cdots & \sigma_{2K} \\
+\vdots & \vdots & \ddots & \vdots \\
+\sigma_{1K} & \sigma_{2K} & \cdots & \sigma_K^2
+\end{pmatrix}
+\in \mathbb{R}^{K \times K}
+}
+\end{equation}
+\begin{itemize}
+  \item \textbf{Diagonala}: wariancje $\sigma_k^2$ — rozrzut wzdłuż każdej osi,
+  \item \textbf{Pozadiagonala}: kowariancje $\sigma_{ij}$ — powiązania między osiami,
+  \item Macierz jest \textbf{symetryczna}: $\sigma_{ij} = \sigma_{ji}$.
+\end{itemize}
+\end{definition}
+
+\textbf{Przykład 2D}:
+\begin{equation}
+\boldsymbol{\Sigma} = \begin{pmatrix}
+\sigma_1^2 & \sigma_{12} \\
+\sigma_{12} & \sigma_2^2
+\end{pmatrix}
+= \begin{pmatrix}
+\text{rozrzut w }z_1 & \text{związek }z_1 \leftrightarrow z_2 \\
+\text{związek }z_1 \leftrightarrow z_2 & \text{rozrzut w }z_2
+\end{pmatrix}
+\end{equation}
+
+\subsection{Wartości własne: co mówią o kształcie danych?}
+
+Macierz kowariancji $\boldsymbol{\Sigma}$ można rozłożyć na \textbf{wartości własne}
+$\lambda_1, \ldots, \lambda_K$ i \textbf{wektory własne} $\mathbf{v}_1, \ldots, \mathbf{v}_K$:
+
+\begin{equation}
+\boldsymbol{\Sigma}\mathbf{v}_k = \lambda_k \mathbf{v}_k
+\end{equation}
+
+\textbf{Co to znaczy?}
+\begin{itemize}
+  \item $\mathbf{v}_k$: \textbf{kierunek} $k$-tej ``osi'' danych (po obrocie do naturalnych osi),
+  \item $\lambda_k$: \textbf{wariancja wzdłuż} tego kierunku — ile ``rozrzutu'' jest w tym kierunku,
+  \item $\sqrt{\lambda_k}$: długość $k$-tej półosi elipsy (elipsoidy).
+\end{itemize}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/eigenvalues_shape.pdf}
+\caption{Wartości własne definiują kształt chmury punktów.
+\textbf{Lewo}: $\lambda_1 = \lambda_2 = 1$ $\Rightarrow$ okrąg (\textbf{izotropia!}).
+\textbf{Środek}: $\lambda_1 = 4, \lambda_2 = 0.25$ $\Rightarrow$ elipsa wzdłuż osi.
+\textbf{Prawo}: $\lambda_1 = 3, \lambda_2 = 0.5$ $\Rightarrow$ obrócona elipsa.
+Czerwone strzałki: wektory własne (kierunki), ich długość $\propto \sqrt{\lambda_k}$.}
+\label{fig:eigenvalues}
+\end{figure}
+
+\subsection{Izotropia = wszystkie wartości własne równe}
+
+\begin{keyinsight}[Kluczowe połączenie z LeJEPA]
+\textbf{Izotropowy} rozkład = macierz kowariancji to wielokrotność jednostkowej:
+\begin{equation}
+\boldsymbol{\Sigma} = \mathbf{I}_K
+\quad \iff \quad
+\lambda_1 = \lambda_2 = \cdots = \lambda_K = 1
+\end{equation}
+
+Co to oznacza geometrycznie:
+\begin{itemize}
+  \item Dane rozrzucone \textbf{jednakowo} we wszystkich kierunkach,
+  \item Chmura punktów to \textbf{hipersfera}, nie elipsoida,
+  \item Żaden wymiar embeddingu nie jest ``ważniejszy'' od innego,
+  \item \textbf{Kowariancje zerowe}: wymiary są niezależne ($\sigma_{ij} = 0$ dla $i \neq j$).
+\end{itemize}
+
+Dlatego LeJEPA wymusza $\boldsymbol{\Sigma} = \mathbf{I}$ za pomocą SIGReg:
+żeby \textit{żadne} przyszłe zadanie downstream nie było ``oślepione''
+brakiem informacji w którymkolwiek kierunku.
+\end{keyinsight}
+
+%% ============================================================
+\section{Wyprowadzenie: rozkład Gaussa od 1D do 3D}
+\label{sec:wyprowadzenie}
+%% ============================================================
+
+Zaczynamy od jednego wymiaru i krok po kroku budujemy intuicję aż do 3D.
+
+% ---- 1D ----
+\subsection{Punkt wyjścia: Gauss w 1D}
+
+Rozkład normalny jednej zmiennej $z \in \mathbb{R}$ o średniej $\mu$ i wariancji $\sigma^2$:
+
+\begin{equation}
+\boxed{
+p(z) = \frac{1}{\sqrt{2\pi\sigma^2}}\;\exp\!\left(-\frac{(z-\mu)^2}{2\sigma^2}\right)
+}
+\tag{1D}
+\label{eq:1d}
+\end{equation}
+
+\textbf{Skąd ten wzór?} Rozbijamy go na kawałki:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.8}
+\begin{tabular}{cp{10.5cm}}
+\toprule
+\textbf{Kawałek} & \textbf{Co robi?} \\
+\midrule
+$(z - \mu)^2$ &
+Kwadrat odległości od średniej. Im dalej od $\mu$, tym większa wartość. \\
+$\dfrac{(z-\mu)^2}{2\sigma^2}$ &
+Normalizuje odległość przez wariancję. Duże $\sigma^2$ = rozkład szeroki (tolerancja na odległość). Małe $\sigma^2$ = rozkład wąski. \\
+$\exp\!\left(-\dfrac{(z-\mu)^2}{2\sigma^2}\right)$ &
+Zamienia odległość na \textbf{prawdopodobieństwo}. Minus w wykładniku = im dalej od $\mu$, tym \textit{mniejsze} $p(z)$. Funkcja $e^{-x}$ maleje szybko! \\
+$\dfrac{1}{\sqrt{2\pi\sigma^2}}$ &
+\textbf{Stała normalizacyjna} — gwarantuje, że $\int_{-\infty}^{\infty} p(z)\,dz = 1$.
+Bez niej to nie byłby rozkład prawdopodobieństwa. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{remark}
+Przypadek standardowy ($\mu = 0$, $\sigma^2 = 1$):
+\begin{equation}
+p(z) = \frac{1}{\sqrt{2\pi}}\;e^{-z^2/2}
+\end{equation}
+To jest ten rozkład, którego chcemy dla embeddingów w LeJEPA!
+\end{remark}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/gauss_decomposition.pdf}
+\caption{Dekompozycja wzoru 1D Gaussa.
+Zielona linia: kwadrat odległości $z^2/2$ rośnie od środka.
+Czerwona: eksponenta $e^{-z^2/2}$ zamienia odległość na malejącą wagę.
+Niebieska: wynik po przeskalowaniu stałą $1/\sqrt{2\pi}$.}
+\label{fig:decomposition}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/gauss_1d.pdf}
+\caption{\textbf{Lewo}: wpływ wariancji $\sigma^2$ — im większa, tym szerszy i niższy rozkład
+(ale pole pod krzywą zawsze $= 1$).
+\textbf{Prawo}: wpływ średniej $\mu$ — przesuwa ``dzwonek'' w prawo lub lewo.}
+\label{fig:gauss1d}
+\end{figure}
+
+% ---- 2D ----
+\subsection{Wyprowadzenie: Gauss w 2D}
+
+Mamy wektor $\mathbf{z} = \begin{pmatrix} z_1 \\ z_2 \end{pmatrix} \in \mathbb{R}^2$.
+Chcemy znaleźć $p(z_1, z_2)$.
+
+\subsubsection*{Krok 1: Zakładamy niezależność}
+
+Jeśli $z_1$ i $z_2$ są \textbf{niezależne}, to ich łączne prawdopodobieństwo jest iloczynem:
+
+\begin{align}
+p(z_1, z_2) &= p(z_1) \cdot p(z_2) \nonumber\\
+&= \frac{1}{\sqrt{2\pi\sigma_1^2}}\exp\!\left(-\frac{(z_1-\mu_1)^2}{2\sigma_1^2}\right)
+\cdot
+\frac{1}{\sqrt{2\pi\sigma_2^2}}\exp\!\left(-\frac{(z_2-\mu_2)^2}{2\sigma_2^2}\right)
+\label{eq:2d_step1}
+\end{align}
+
+\subsubsection*{Krok 2: Łączymy stałe normalizacyjne}
+
+\begin{equation}
+\frac{1}{\sqrt{2\pi\sigma_1^2}} \cdot \frac{1}{\sqrt{2\pi\sigma_2^2}}
+= \frac{1}{2\pi\,\sigma_1\sigma_2}
+\label{eq:2d_step2}
+\end{equation}
+
+Bo $\sqrt{a} \cdot \sqrt{b} = \sqrt{ab}$, więc
+$\sqrt{2\pi\sigma_1^2} \cdot \sqrt{2\pi\sigma_2^2} = \sqrt{(2\pi)^2 \sigma_1^2\sigma_2^2} = 2\pi\,\sigma_1\sigma_2$.
+
+\subsubsection*{Krok 3: Łączymy wykładniki}
+
+Właściwość eksponenty: $e^a \cdot e^b = e^{a+b}$, więc:
+
+\begin{equation}
+\exp\!\left(-\frac{(z_1-\mu_1)^2}{2\sigma_1^2}\right)
+\cdot
+\exp\!\left(-\frac{(z_2-\mu_2)^2}{2\sigma_2^2}\right)
+= \exp\!\left(-\frac{(z_1-\mu_1)^2}{2\sigma_1^2} - \frac{(z_2-\mu_2)^2}{2\sigma_2^2}\right)
+\label{eq:2d_step3}
+\end{equation}
+
+\subsubsection*{Krok 4: Zapisujemy w notacji macierzowej}
+
+Definiujemy:
+\begin{equation}
+\boldsymbol{\mu} = \begin{pmatrix} \mu_1 \\ \mu_2 \end{pmatrix}, \qquad
+\boldsymbol{\Sigma} = \begin{pmatrix} \sigma_1^2 & 0 \\ 0 & \sigma_2^2 \end{pmatrix}
+\quad \text{(macierz kowariancji, diagonalna bo niezależne)}
+\end{equation}
+
+Wtedy:
+\begin{equation}
+\boldsymbol{\Sigma}^{-1} = \begin{pmatrix} 1/\sigma_1^2 & 0 \\ 0 & 1/\sigma_2^2 \end{pmatrix},
+\qquad
+\det(\boldsymbol{\Sigma}) = \sigma_1^2 \cdot \sigma_2^2
+\end{equation}
+
+Wykładnik możemy zapisać jako \textbf{formę kwadratową}:
+\begin{align}
+\frac{(z_1-\mu_1)^2}{\sigma_1^2} + \frac{(z_2-\mu_2)^2}{\sigma_2^2}
+&= \begin{pmatrix} z_1-\mu_1 & z_2-\mu_2 \end{pmatrix}
+\begin{pmatrix} 1/\sigma_1^2 & 0 \\ 0 & 1/\sigma_2^2 \end{pmatrix}
+\begin{pmatrix} z_1-\mu_1 \\ z_2-\mu_2 \end{pmatrix} \nonumber\\
+&= (\mathbf{z} - \boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1} (\mathbf{z} - \boldsymbol{\mu})
+\label{eq:quadratic}
+\end{align}
+
+\subsubsection*{Krok 5: Wynik — Gauss 2D (niezależne)}
+
+Składamy wszystko:
+
+\begin{equation}
+\boxed{
+p(\mathbf{z}) = p(z_1, z_2) =
+\frac{1}{2\pi\,\sigma_1\sigma_2}
+\;\exp\!\left(
+-\frac{1}{2}(\mathbf{z}-\boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1} (\mathbf{z}-\boldsymbol{\mu})
+\right)
+}
+\tag{2D-diag}
+\label{eq:2d_diag}
+\end{equation}
+
+\subsubsection*{Krok 6: Uogólnienie — z korelacją}
+
+Co jeśli $z_1$ i $z_2$ \textit{nie} są niezależne? Wtedy macierz kowariancji ma elementy pozadiagonalne:
+
+\begin{equation}
+\boldsymbol{\Sigma} = \begin{pmatrix}
+\sigma_1^2 & \rho\,\sigma_1\sigma_2 \\
+\rho\,\sigma_1\sigma_2 & \sigma_2^2
+\end{pmatrix}
+\end{equation}
+
+gdzie $\rho \in [-1,1]$ to \textbf{współczynnik korelacji} Pearsona.
+
+Wzór ma \textit{identyczną strukturę}, zmienia się tylko $\boldsymbol{\Sigma}$:
+
+\begin{equation}
+\boxed{
+p(\mathbf{z}) =
+\frac{1}{2\pi\sqrt{\det(\boldsymbol{\Sigma})}}
+\;\exp\!\left(
+-\frac{1}{2}(\mathbf{z}-\boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1} (\mathbf{z}-\boldsymbol{\mu})
+\right)
+}
+\tag{2D}
+\label{eq:2d_full}
+\end{equation}
+
+\begin{keyinsight}[Sprawdzenie: stała normalizacyjna]
+Dla 2D:
+$\dfrac{1}{\sqrt{(2\pi)^2 \det(\boldsymbol{\Sigma})}} = \dfrac{1}{2\pi\sqrt{\det(\boldsymbol{\Sigma})}}$.
+
+\medskip
+Gdy $\rho = 0$ (niezależne): $\det(\boldsymbol{\Sigma}) = \sigma_1^2\sigma_2^2$,
+więc $\sqrt{\det(\boldsymbol{\Sigma})} = \sigma_1\sigma_2$ — zgadza się z \eqref{eq:2d_diag}!
+\end{keyinsight}
+
+\subsubsection*{Rozpiszmy wykładnik z korelacją (do ćwiczenia)}
+
+\begin{align}
+\boldsymbol{\Sigma}^{-1} &= \frac{1}{\sigma_1^2\sigma_2^2(1-\rho^2)}
+\begin{pmatrix}
+\sigma_2^2 & -\rho\,\sigma_1\sigma_2 \\
+-\rho\,\sigma_1\sigma_2 & \sigma_1^2
+\end{pmatrix}
+\label{eq:sigma_inv_2d}
+\end{align}
+
+Więc wykładnik:
+\begin{align}
+(\mathbf{z}-\boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1} (\mathbf{z}-\boldsymbol{\mu})
+&= \frac{1}{1-\rho^2}\left[
+\frac{(z_1-\mu_1)^2}{\sigma_1^2}
+- \frac{2\rho(z_1-\mu_1)(z_2-\mu_2)}{\sigma_1\sigma_2}
++ \frac{(z_2-\mu_2)^2}{\sigma_2^2}
+\right]
+\label{eq:exponent_2d}
+\end{align}
+
+\begin{remark}
+Gdy $\rho = 0$: czynnik $\frac{1}{1-\rho^2} = 1$ i wyraz mieszany znika — wracamy do przypadku niezależnego.
+\end{remark}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/gauss_2d_types.pdf}
+\caption{Trzy typy rozkładu Gaussa 2D.
+\textbf{Lewo}: izotropowy ($\boldsymbol{\Sigma} = \mathbf{I}$) — izolinie to okręgi.
+\textbf{Środek}: diagonalny anizotropowy ($\sigma_1^2 \neq \sigma_2^2$) — elipsy wzdłuż osi.
+\textbf{Prawo}: z korelacją ($\rho = 0.8$) — obrócone elipsy.
+Czerwone strzałki: wektory własne $\boldsymbol{\Sigma}$ (kierunki główne).}
+\label{fig:gauss2d_types}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/gauss_isolines.pdf}
+\caption{Izolinie gęstości 2D — kształt mówi wszystko o macierzy kowariancji.
+\textbf{Okręgi} = izotropowy. \textbf{Elipsy wzdłuż osi} = diagonalny.
+\textbf{Obrócone elipsy} = korelacja.
+Wartości własne $\lambda_1, \lambda_2$ określają długości półosi.}
+\label{fig:isolines}
+\end{figure}
+
+\bigskip
+
+% ---- 3D ----
+\subsection{Wyprowadzenie: Gauss w 3D}
+
+Teraz $\mathbf{z} = \begin{pmatrix} z_1 \\ z_2 \\ z_3 \end{pmatrix} \in \mathbb{R}^3$.
+Procedura jest identyczna!
+
+\subsubsection*{Krok 1: Definiujemy parametry}
+
+\begin{equation}
+\boldsymbol{\mu} = \begin{pmatrix} \mu_1 \\ \mu_2 \\ \mu_3 \end{pmatrix}, \qquad
+\boldsymbol{\Sigma} = \begin{pmatrix}
+\sigma_1^2 & \sigma_{12} & \sigma_{13} \\
+\sigma_{12} & \sigma_2^2 & \sigma_{23} \\
+\sigma_{13} & \sigma_{23} & \sigma_3^2
+\end{pmatrix}
+\end{equation}
+
+gdzie $\sigma_{ij} = \mathrm{Cov}(z_i, z_j)$ to kowariancje (korelacje przeskalowane).
+
+\subsubsection*{Krok 2: Wzór ogólny}
+
+\begin{equation}
+\boxed{
+p(\mathbf{z}) =
+\frac{1}{(2\pi)^{3/2}\sqrt{\det(\boldsymbol{\Sigma})}}
+\;\exp\!\left(
+-\frac{1}{2}(\mathbf{z}-\boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1} (\mathbf{z}-\boldsymbol{\mu})
+\right)
+}
+\tag{3D}
+\label{eq:3d_full}
+\end{equation}
+
+\subsubsection*{Krok 3: Przypadek niezależny ($\boldsymbol{\Sigma}$ diagonalna)}
+
+\begin{equation}
+\boldsymbol{\Sigma} = \begin{pmatrix}
+\sigma_1^2 & 0 & 0 \\
+0 & \sigma_2^2 & 0 \\
+0 & 0 & \sigma_3^2
+\end{pmatrix}
+\;\Rightarrow\;
+\boldsymbol{\Sigma}^{-1} = \begin{pmatrix}
+1/\sigma_1^2 & 0 & 0 \\
+0 & 1/\sigma_2^2 & 0 \\
+0 & 0 & 1/\sigma_3^2
+\end{pmatrix}
+\end{equation}
+
+Wtedy $\det(\boldsymbol{\Sigma}) = \sigma_1^2\,\sigma_2^2\,\sigma_3^2$ i:
+
+\begin{align}
+p(z_1,z_2,z_3) &=
+\frac{1}{(2\pi)^{3/2}\,\sigma_1\sigma_2\sigma_3}
+\;\exp\!\left(
+-\frac{(z_1-\mu_1)^2}{2\sigma_1^2}
+-\frac{(z_2-\mu_2)^2}{2\sigma_2^2}
+-\frac{(z_3-\mu_3)^2}{2\sigma_3^2}
+\right) \nonumber\\
+&= \underbrace{\frac{e^{-(z_1-\mu_1)^2/(2\sigma_1^2)}}{\sqrt{2\pi}\,\sigma_1}}_{p(z_1)}
+\cdot
+\underbrace{\frac{e^{-(z_2-\mu_2)^2/(2\sigma_2^2)}}{\sqrt{2\pi}\,\sigma_2}}_{p(z_2)}
+\cdot
+\underbrace{\frac{e^{-(z_3-\mu_3)^2/(2\sigma_3^2)}}{\sqrt{2\pi}\,\sigma_3}}_{p(z_3)}
+\label{eq:3d_indep}
+\end{align}
+
+\begin{keyinsight}[Wzorzec: iloczyn niezależnych = suma w wykładniku]
+Niezależność w 3D oznacza, że łączna gęstość \textbf{faktoryzuje się} na iloczyn trzech 1D Gaussów.
+W wykładniku: iloczyn $e^a \cdot e^b \cdot e^c = e^{a+b+c}$.
+\end{keyinsight}
+
+\subsubsection*{Krok 4: Przypadek izotropowy (LeJEPA!)}
+
+Izotropowy = niezależne \textit{i} jednakowa wariancja: $\sigma_1^2 = \sigma_2^2 = \sigma_3^2 = 1$, $\boldsymbol{\mu} = \mathbf{0}$:
+
+\begin{equation}
+\boxed{
+p(\mathbf{z}) = \frac{1}{(2\pi)^{3/2}}
+\;\exp\!\left(-\frac{z_1^2 + z_2^2 + z_3^2}{2}\right)
+= \frac{1}{(2\pi)^{3/2}}
+\;\exp\!\left(-\frac{\|\mathbf{z}\|^2}{2}\right)
+}
+\tag{3D-iso}
+\label{eq:3d_iso}
+\end{equation}
+
+Izolinie gęstości ($p(\mathbf{z}) = \mathrm{const}$) to \textbf{sfery}:
+$\|\mathbf{z}\|^2 = z_1^2 + z_2^2 + z_3^2 = r^2$.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/gauss_3d_surfaces.pdf}
+\caption{Powierzchnie gęstości 3D (wyświetlamy $p(z_1,z_2)$ dla 2 zmiennych).
+\textbf{Lewo}: izotropowy — symetryczny ``dzwonek''.
+\textbf{Prawo}: anizotropowy ($\sigma_1^2=3, \sigma_2^2=0.3$) — wydłużony grzbiet.
+W 3D pełnym izolinie to sfery (izotropowy) vs.\ elipsoidy (anizotropowy).}
+\label{fig:gauss3d}
+\end{figure}
+
+% ---- General K-D ----
+\subsection{Uogólnienie: Gauss w $K$ wymiarach}
+
+Wzorzec jest jasny — w $K$ wymiarach ($K = 384$ dla ViT-Small):
+
+\begin{equation}
+\boxed{
+p(\mathbf{z}) =
+\frac{1}{(2\pi)^{K/2}\sqrt{\det(\boldsymbol{\Sigma})}}
+\;\exp\!\left(
+-\frac{1}{2}(\mathbf{z}-\boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1} (\mathbf{z}-\boldsymbol{\mu})
+\right)
+}
+\tag{$K$D}
+\label{eq:kd}
+\end{equation}
+
+Dla izotropowego ($\boldsymbol{\mu} = \mathbf{0}$, $\boldsymbol{\Sigma} = \mathbf{I}_K$):
+
+\begin{equation}
+\boxed{
+p(\mathbf{z}) = \frac{1}{(2\pi)^{K/2}}
+\;\exp\!\left(-\frac{\|\mathbf{z}\|^2}{2}\right)
+= \frac{1}{(2\pi)^{K/2}}
+\;\exp\!\left(-\frac{1}{2}\sum_{k=1}^{K} z_k^2\right)
+}
+\tag{$K$D-iso}
+\label{eq:kd_iso}
+\end{equation}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Wymiar} & \textbf{Stała normalizacyjna} & \textbf{Wykładnik (iso)} & \textbf{Izolinie} \\
+\midrule
+1D & $\dfrac{1}{\sqrt{2\pi}}$ & $-\dfrac{z^2}{2}$ & punkty $z = \pm r$ \\[0.7em]
+2D & $\dfrac{1}{2\pi}$ & $-\dfrac{z_1^2+z_2^2}{2}$ & okręgi \\[0.7em]
+3D & $\dfrac{1}{(2\pi)^{3/2}}$ & $-\dfrac{z_1^2+z_2^2+z_3^2}{2}$ & sfery \\[0.7em]
+$K$D & $\dfrac{1}{(2\pi)^{K/2}}$ & $-\dfrac{\sum_k z_k^2}{2}$ & hipersfery \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%% ============================================================
+\section{Kontekst: Co robi encoder w JEPA?}
+%% ============================================================
+
+Encoder $f_\theta: \mathbb{R}^D \to \mathbb{R}^K$ mapuje dane wejściowe (np.\ ramki wideo)
+do embeddingów w przestrzeni $K$-wymiarowej. Te embeddingi muszą spełniać dwa warunki:
+
+\begin{enumerate}[label=(\roman*)]
+  \item \textbf{Predykcja}: embedding widoku $v$ powinien być przewidywalny z embeddingu widoku $v'$,
+  \item \textbf{Brak degeneracji}: embeddingi nie mogą się ``zkolapsować'' do jednego punktu.
+\end{enumerate}
+
+\begin{keyinsight}[Fundamentalne pytanie]
+Jaki \textbf{rozkład} $P_\theta$ powinny mieć embeddingi $\mathbf{z} = f_\theta(\mathbf{x})$,
+aby encoder był najlepszy na \textit{dowolnym} przyszłym zadaniu downstream?
+\end{keyinsight}
+
+Odpowiedź LeJEPA: \textbf{izotropowy Gauss} $\mathcal{N}(\mathbf{0}, \mathbf{I}_K)$.
+
+%% ============================================================
+\section{Co to jest izotropowy rozkład Gaussa?}
+%% ============================================================
+
+\begin{definition}[Izotropowy rozkład Gaussa]
+Wektor losowy $\mathbf{z} \in \mathbb{R}^K$ ma \textbf{izotropowy rozkład Gaussa},
+jeśli:
+\begin{equation}
+\mathbf{z} \sim \mathcal{N}(\mathbf{0}, \mathbf{I}_K),
+\quad \text{tzn.} \quad
+p(\mathbf{z}) = \frac{1}{(2\pi)^{K/2}} \exp\!\left(-\frac{1}{2}\|\mathbf{z}\|^2\right)
+\label{eq:isotropic}
+\end{equation}
+gdzie $\mathbf{I}_K$ jest macierzą jednostkową $K \times K$.
+\end{definition}
+
+\textbf{Izotropia} oznacza, że rozkład wygląda identycznie we \textit{wszystkich} kierunkach:
+\begin{itemize}
+  \item Macierz kowariancji: $\mathrm{Cov}(\mathbf{z}) = \mathbf{I}_K$
+        (wszystkie wartości własne $\lambda_1 = \lambda_2 = \cdots = \lambda_K = 1$),
+  \item Izolinie gęstości to \textbf{hipersferery} $\|\mathbf{z}\| = r$,
+  \item Żaden wymiar nie jest ``ważniejszy'' od innego.
+\end{itemize}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/isotropic_gaussian_3d.pdf}
+\caption{Gęstość izotropowego Gaussa $\mathcal{N}(\mathbf{0}, \mathbf{I}_2)$.
+\textbf{Lewo}: powierzchnia 3D. \textbf{Prawo}: izolinie tworzą koncentryczne okręgi —
+cecha izotropii.}
+\label{fig:3d}
+\end{figure}
+
+\subsection{Izotropowy vs.\ anizotropowy vs.\ kolaps}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/isotropic_vs_anisotropic_2d.pdf}
+\caption{Trzy scenariusze embeddingów 2D. \textbf{Lewo}: izotropowy Gauss —
+równomierne rozłożenie we wszystkich kierunkach.
+\textbf{Środek}: anizotropowy — informacja skoncentrowana wzdłuż jednej osi.
+\textbf{Prawo}: kolaps — brak jakiejkolwiek informacji.
+Czerwone strzałki to wektory własne macierzy kowariancji.}
+\label{fig:2d}
+\end{figure}
+
+%% ============================================================
+\section{Dlaczego izotropowy Gauss jest optymalny?}
+\label{sec:why}
+%% ============================================================
+
+\subsection{Przypadek 1: Linear probe (regresja liniowa)}
+
+Standardowa ewaluacja foundation modeli: zamrażamy encoder, trenujemy liniowy klasyfikator
+na embeddingach.
+
+\begin{definition}[Linear probe — OLS z regularyzacją Tikhonova]
+\begin{equation}
+\hat{\beta} = \arg\min_{\beta \in \mathbb{R}^K}
+\|\mathbf{y} - \mathbf{Z}\beta\|_2^2 + \lambda\|\beta\|_2^2
+\label{eq:ols}
+\end{equation}
+gdzie $\mathbf{Z} \in \mathbb{R}^{N \times K}$ to macierz embeddingów,
+$\mathbf{y} \in \mathbb{R}^N$ to etykiety, $\lambda \geq 0$ to siła regularyzacji.
+\end{definition}
+
+Rozważmy dwa rozkłady embeddingów o \textit{tej samej energii} (suma wariancji):
+\begin{align}
+\mathbf{Z}_{\text{iso}} &: \quad \mathrm{Cov}(\mathbf{z}) = \mathbf{I}_K
+\quad (\text{wartości własne: } 1, 1, \ldots, 1) \\
+\mathbf{Z}_{\text{aniso}} &: \quad \mathrm{Cov}(\mathbf{z}) = \mathrm{diag}(\lambda_1, \ldots, \lambda_K)
+\quad (\text{co najmniej dwie różne } \lambda_k)
+\end{align}
+Oba rozkłady mają tę samą sumaryczną wariancję: $\sum_k \lambda_k = K$.
+
+\begin{lemma}[Anizotropia wzmacnia bias — Lemat 1 w artykule]
+\label{lem:bias}
+Gdy $\lambda_K > \lambda_1$, \textbf{zawsze istnieje} zadanie downstream (etykiety $\mathbf{y}$),
+dla którego $\mathbf{Z}_{\text{aniso}}$ daje \textbf{wyższy bias} estymatora $\hat{\beta}$
+niż $\mathbf{Z}_{\text{iso}}$, przy $\lambda > 0$.
+\end{lemma}
+
+\textit{Intuicja}: Regularyzacja Tikhonova ``obcina'' komponenty proporcjonalnie do $\frac{\lambda_k}{\lambda_k + \lambda}$.
+Gdy $\lambda_k$ są nierówne, małe $\lambda_k$ są obcinane agresywniej $\Rightarrow$ informacja w tych kierunkach jest tracona.
+
+\begin{lemma}[Anizotropia wzmacnia wariancję — Lemat 2 w artykule]
+\label{lem:var}
+Wariancja sumaryczna estymatora jest większa dla rozkładu anizotropowego:
+\begin{equation}
+\mathrm{tr}\!\left(\mathrm{Var}(\hat{\beta}_{\text{aniso}})\right)
+> \mathrm{tr}\!\left(\mathrm{Var}(\hat{\beta}_{\text{iso}})\right)
+\end{equation}
+przy $\lambda = 0$ (OLS bez regularyzacji).
+\end{lemma}
+
+\textit{Intuicja}: Kierunki z małą wariancją ($\lambda_k \ll 1$) mają mało próbek ``pokrywających'' ten wymiar,
+więc estymacja $\hat{\beta}_k$ jest niestabilna.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/bias_variance_illustration.pdf}
+\caption{Ilustracja Lematu 1 i 2.
+Czarna linia: prawdziwa granica decyzyjna.
+Zielone linie: granice nauczone z losowych podzbiorów danych.
+\textbf{Lewo}: izotropowe embeddingi $\Rightarrow$ nauczone granice blisko prawdziwej (niski bias)
+i mało rozproszone (niska wariancja).
+\textbf{Prawo}: anizotropowe $\Rightarrow$ granice przesunięte (wysoki bias)
+i mocno rozproszone (wysoka wariancja).}
+\label{fig:bias_var}
+\end{figure}
+
+\subsection{Przypadek 2: Nieliniowe metody (k-NN, kernel)}
+
+Dla bardziej elastycznej ewaluacji (nie tylko linear probe), artykuł analizuje:
+
+\begin{definition}[k-NN predykcja]
+\begin{equation}
+\hat{y}(\mathbf{q}) = \frac{1}{|\mathcal{N}_{r_0}(\mathbf{q})|}
+\sum_{n \in \mathcal{N}_{r_0}(\mathbf{q})} y_n,
+\quad \text{gdzie } \mathcal{N}_{r_0}(\mathbf{q}) = \{n : \|\mathbf{z}_n - \mathbf{q}\| \leq r_0\}
+\end{equation}
+\end{definition}
+
+\begin{definition}[Kernel predykcja]
+\begin{equation}
+\hat{y}(\mathbf{q}) = \frac{\sum_{n=1}^N K_h(\mathbf{q} - \mathbf{z}_n) y_n}
+{\sum_{n=1}^N K_h(\mathbf{q} - \mathbf{z}_n)}
+\end{equation}
+\end{definition}
+
+\begin{theorem}[Optymalność izotropowego Gaussa — Tw.\ 1 w artykule]
+\label{thm:optimal}
+Zintegrowany błąd kwadratowy (Integrated Square Bias) wynosi:
+\begin{align}
+\mathrm{ISB}_{k\text{-NN}} &= \frac{r_0^4}{(K+2)^2}\,\tau_2^2\,J(p) + O(r_0^4) \label{eq:isb_knn} \\
+\mathrm{ISB}_{\text{kernel}} &\leq \left(\frac{h^2 \mu_2(K)}{2}\right)^2
+\left(2B^2 + 8L^2 J(p)\right) + o(h^4) \label{eq:isb_kernel}
+\end{align}
+gdzie $J(p) = \int \|\nabla^2 \log p(\mathbf{z})\|_F^2 \, p(\mathbf{z}) \, d\mathbf{z}$
+jest \textbf{informacją Fishera drugiego rzędu}.
+
+Wśród rozkładów o kowariancji typu $\kappa \mathbf{I}_K$ (izotropowych),
+\textbf{izotropowy Gauss jest jedynym minimalizatorem} $J(p)$,
+a więc jedynym minimalizatorem ISB.
+\end{theorem}
+
+\begin{keyinsight}[Podsumowanie: dlaczego Gauss?]
+\begin{enumerate}
+  \item \textbf{Izotropia} ($\mathrm{Cov} = \mathbf{I}$): minimalizuje bias i wariancję linear probe,
+  \item \textbf{Gaussowość}: minimalizuje informację Fishera $J(p)$,
+        co minimalizuje ISB dla k-NN i kernel,
+  \item \textbf{Razem}: $\mathcal{N}(\mathbf{0}, \mathbf{I}_K)$ jest jedynym rozkładem
+        optymalnym dla \textit{każdego} możliwego zadania downstream.
+\end{enumerate}
+\end{keyinsight}
+
+%% ============================================================
+\section{Jak to wymusić? SIGReg}
+\label{sec:sigreg}
+%% ============================================================
+
+Skoro wiemy, że embeddingi powinny mieć rozkład $\mathcal{N}(\mathbf{0}, \mathbf{I}_K)$,
+potrzebujemy mechanizmu, który to wymusi podczas treningu.
+
+\subsection{Idea: test statystyczny jako loss}
+
+Zamiast heurystyk (whitening, stop-gradient, teacher-student), LeJEPA używa
+\textbf{testu hipotez}:
+\begin{equation}
+H_0: P_\theta = \mathcal{N}(\mathbf{0}, \mathbf{I}_K)
+\quad \text{vs.} \quad
+H_1: P_\theta \neq \mathcal{N}(\mathbf{0}, \mathbf{I}_K)
+\end{equation}
+
+Problem: testowanie w $K$ wymiarach ($K = 128, 384, \ldots$) jest obliczeniowo trudne.
+
+\subsection{Sketching: redukcja do testów 1D}
+
+Kluczowy trik: zamiast testować w $\mathbb{R}^K$, rzutujemy na losowe kierunki $\mathbf{a} \in \mathbb{S}^{K-1}$:
+
+\begin{equation}
+\mathbf{a}^\top \mathbf{z} \sim \mathcal{N}(0, 1) \quad \forall\, \mathbf{a}
+\quad \iff \quad
+\mathbf{z} \sim \mathcal{N}(\mathbf{0}, \mathbf{I}_K)
+\end{equation}
+
+To wynika z \textbf{Lematu Craméra-Wolda}: rozkład wielowymiarowy jest jednoznacznie
+określony przez wszystkie swoje rzuty jednowymiarowe.
+
+\subsection{Test Eppsa-Pulleya na rzutach 1D}
+
+Dla każdego rzutu $u = \mathbf{a}^\top \mathbf{z}$ porównujemy empiryczną funkcję charakterystyczną (ECF) z teoretyczną:
+
+\begin{equation}
+\text{EP} = N \int_{-\infty}^{\infty}
+\left|\hat{\varphi}_X(t) - \varphi_{\mathcal{N}(0,1)}(t)\right|^2 w(t)\,dt
+\label{eq:ep}
+\end{equation}
+
+gdzie:
+\begin{align}
+\hat{\varphi}_X(t) &= \frac{1}{N}\sum_{j=1}^{N} e^{itX_j}
+\quad \text{(empiryczna funkcja charakterystyczna)} \\
+\varphi_{\mathcal{N}(0,1)}(t) &= e^{-t^2/2}
+\quad \text{(CF standardowego Gaussa)} \\
+w(t) &= e^{-t^2/\sigma^2}
+\quad \text{(waga Gaussowska, } \sigma \text{ typowo } = 1\text{)}
+\end{align}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/characteristic_functions.pdf}
+\caption{\textbf{Lewo}: Gęstości rzutów 1D — izotropowy ma $\sigma^2=1$ (cel),
+anizotropowy ma różne wariancje w różnych kierunkach.
+\textbf{Prawo}: Funkcje charakterystyczne i błąd Eppsa-Pulleya —
+różnica między empiryczną CF a docelową $e^{-t^2/2}$.}
+\label{fig:cf}
+\end{figure}
+
+\subsection{SIGReg: pełna definicja}
+
+\begin{definition}[Sketched Isotropic Gaussian Regularization]
+\begin{equation}
+\boxed{
+\mathrm{SIGReg}_T(\mathbb{A}, \{f_\theta(\mathbf{x}_n)\}_{n=1}^N)
+\triangleq \frac{1}{|\mathbb{A}|} \sum_{\mathbf{a} \in \mathbb{A}}
+T\!\left(\{\mathbf{a}^\top f_\theta(\mathbf{x}_n)\}_{n=1}^N\right)
+}
+\label{eq:sigreg}
+\end{equation}
+gdzie $\mathbb{A} = \{\mathbf{a}_1, \ldots, \mathbf{a}_M\}$ to losowe kierunki jednostkowe,
+$T$ to test Eppsa-Pulleya, $M \approx 1024$.
+\end{definition}
+
+\subsection{Dlaczego Epps-Pulley a nie inne testy?}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Test} & \textbf{Gradient} & \textbf{Stabilność} & \textbf{DDP} \\
+\midrule
+Momenty (Jarque-Bera) & eksplodujący & niska & tak \\
+CDF (Cramér-von Mises) & wymaga sortowania & brak & nie \\
+CF (Epps-Pulley) & ograniczony & wysoka & tak \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Epps-Pulley ma:
+\begin{itemize}
+  \item Ograniczony gradient: $|\partial \text{EP}/\partial z_i| \leq 4\sigma^2/N$ (Tw.~4 w artykule),
+  \item Liniową złożoność: $O(N)$ pamięci i czasu,
+  \item Naturalną kompatybilność z DDP: ECF to średnia $\Rightarrow$ \texttt{all\_reduce}.
+\end{itemize}
+
+%% ============================================================
+\section{Pełny loss LeJEPA}
+\label{sec:fulloss}
+%% ============================================================
+
+\begin{equation}
+\boxed{
+\mathcal{L}_{\text{LeJEPA}} =
+\underbrace{\frac{\lambda}{V} \sum_{v=1}^{V} \mathrm{SIGReg}\!\left(\{\mathbf{z}_{n,v}\}_{n=1}^B\right)}_{\text{regularyzacja: wymuś } \mathcal{N}(\mathbf{0}, \mathbf{I})}
++ \underbrace{\frac{1-\lambda}{B} \sum_{n=1}^{B} \mathcal{L}_{\text{pred}}^{(V_g)}\!\left(\{\mathbf{z}_{n,v}\}_{v=1}^V\right)}_{\text{predykcja: wymuś semantyczną spójność}}
+}
+\label{eq:lejepa}
+\end{equation}
+
+gdzie loss predykcyjny to:
+\begin{equation}
+\mathcal{L}_{\text{pred}} = \frac{1}{V}\sum_{v'=1}^{V}
+\left\|\boldsymbol{\mu}_n - \mathbf{z}_{n,v'}\right\|_2^2,
+\quad
+\boldsymbol{\mu}_n \triangleq \frac{1}{V_g}\sum_{v=1}^{V_g} \mathbf{z}_{n,v}
+\end{equation}
+
+\begin{keyinsight}[Jeden hiperparametr!]
+$\lambda$ kontroluje trade-off między:
+\begin{itemize}
+  \item $\lambda \to 0$: czysta predykcja (ryzyko kolapsu),
+  \item $\lambda \to 1$: czysty SIGReg (brak semantycznej struktury),
+  \item $\lambda = 0.05$: \textbf{rekomendowane} — stabilne na wielu datasetach i architekturach.
+\end{itemize}
+\end{keyinsight}
+
+%% ============================================================
+\section{Geometryczna intuicja}
+%% ============================================================
+
+\begin{warningbox}[Dlaczego kolaps jest katastrofalny?]
+Jeśli $f_\theta(\mathbf{x}) = \mathbf{c}$ dla każdego $\mathbf{x}$:
+\begin{itemize}
+  \item Linear probe: $\mathbf{Z} = \mathbf{1}\mathbf{c}^\top \Rightarrow \mathrm{rank}(\mathbf{Z})=1 \Rightarrow$
+        niemożliwa klasyfikacja,
+  \item k-NN: $\|\mathbf{z}_i - \mathbf{z}_j\| = 0 \, \forall i,j \Rightarrow$
+        wszyscy sąsiedzi są identyczni,
+  \item Loss predykcyjny: $\mathcal{L}_{\text{pred}} = 0$ (trywialne minimum!).
+\end{itemize}
+\end{warningbox}
+
+Izotropowy Gauss rozwiązuje ten problem:
+\begin{enumerate}
+  \item Embeddingi \textbf{wypełniają} przestrzeń $\mathbb{R}^K$ równomiernie,
+  \item Żaden kierunek nie jest preferowany $\Rightarrow$ linear probe działa jednakowo dobrze
+        dla \textit{dowolnego} zadania (niezależnie od orientacji granicy decyzyjnej),
+  \item Maksymalna ``pojemność informacyjna'' — entropia Gaussa jest maksymalna
+        wśród rozkładów o ustalonej wariancji:
+        \begin{equation}
+        H(\mathbf{z}) = \frac{K}{2}\ln(2\pi e) \quad \text{(maksimum entropii)}
+        \end{equation}
+\end{enumerate}
+
+%% ============================================================
+\section{Podsumowanie}
+%% ============================================================
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{p{4cm}p{10cm}}
+\toprule
+\textbf{Pytanie} & \textbf{Odpowiedź} \\
+\midrule
+Jaki rozkład embeddingów? & $\mathcal{N}(\mathbf{0}, \mathbf{I}_K)$ — izotropowy Gauss \\
+Dlaczego izotropowy? & Minimalizuje bias i wariancję linear probe (Lem.\ 1--2) \\
+Dlaczego Gauss? & Minimalizuje ISB k-NN/kernel (Tw.\ 1) \\
+Jak wymusić? & SIGReg: test Eppsa-Pulleya na losowych rzutach 1D \\
+Ile hiperparametrów? & Jeden: $\lambda = 0.05$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\end{document}
