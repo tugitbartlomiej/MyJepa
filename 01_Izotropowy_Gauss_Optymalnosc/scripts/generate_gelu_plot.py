@@ -56,21 +56,27 @@ inputs = np.random.randn(5000) * 1.5
 # Apply GELU
 gelu_outputs = inputs * norm.cdf(inputs)
 
-ax2.hist(inputs, bins=60, alpha=0.4, color='gray', label='Wejście (przed GELU)', density=True)
-ax2.hist(gelu_outputs, bins=60, alpha=0.6, color='blue', label='Wyjście (po GELU)', density=True)
+ax2.hist(inputs, bins=60, alpha=0.4, color='gray', label='Wejście (przed GELU)')
+ax2.hist(gelu_outputs, bins=60, alpha=0.6, color='blue', label='Wyjście (po GELU)')
 ax2.axvline(0, color='black', linewidth=0.5)
 
-ax2.set_xlabel('Wartość', fontsize=12)
-ax2.set_ylabel('Gęstość', fontsize=12)
-ax2.set_title('Efekt GELU na rozkład wartości', fontsize=13, fontweight='bold')
+ax2.set_xlabel('Wartość neuronu', fontsize=12)
+ax2.set_ylabel('Liczba wartości (z 5000)', fontsize=12)
+ax2.set_title('Efekt GELU na rozkład 5000 wartości', fontsize=13, fontweight='bold')
 ax2.legend(fontsize=11)
 ax2.grid(True, alpha=0.3)
 
 # Annotations
-ax2.annotate('Wartości ujemne\nzostają stłumione\n(nie wycięte!)',
-            xy=(-0.5, 0.1), xytext=(-3, 0.5),
+ax2.annotate('Wartości ujemne\nzostają stłumione\n(ściągnięte w stronę 0)',
+            xy=(-0.3, 200), xytext=(-3, 600),
             fontsize=9, ha='center',
             arrowprops=dict(arrowstyle='->', color='blue'))
+
+ax2.annotate('Duży pik przy 0:\nGELU "zepchnęła"\nujemne wartości tutaj',
+            xy=(0.05, 800), xytext=(2.5, 700),
+            fontsize=9, ha='center',
+            arrowprops=dict(arrowstyle='->', color='blue', lw=1.5),
+            color='blue', fontweight='bold')
 
 plt.tight_layout()
 plt.savefig('figures/gelu_activation.pdf', bbox_inches='tight')
