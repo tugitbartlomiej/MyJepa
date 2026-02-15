@@ -1,0 +1,47 @@
+\clearpage
+%% ============================================================
+\section{Co to jest izotropowy rozkład Gaussa?}
+%% ============================================================
+
+\begin{definition}[Izotropowy rozkład Gaussa]
+Wektor losowy $\mathbf{z} \in \mathbb{R}^K$ ma \textbf{izotropowy rozkład Gaussa},
+jeśli:
+\begin{equation}
+\mathbf{z} \sim \mathcal{N}(\mathbf{0}, \mathbf{I}_K),
+\quad \text{tzn.} \quad
+p(\mathbf{z}) = \frac{1}{(2\pi)^{K/2}} \exp\!\left(-\frac{1}{2}\|\mathbf{z}\|^2\right)
+\label{eq:isotropic}
+\end{equation}
+gdzie $\mathbf{I}_K$ jest macierzą jednostkową $K \times K$.
+\end{definition}
+
+\textbf{Izotropia} oznacza, że rozkład wygląda identycznie we \textit{wszystkich} kierunkach:
+\begin{itemize}
+  \item Macierz kowariancji: $\mathrm{Cov}(\mathbf{z}) = \mathbf{I}_K$
+        (wszystkie wartości własne $\lambda_1 = \lambda_2 = \cdots = \lambda_K = 1$),
+  \item Izolinie gęstości to \textbf{hipersferery} $\|\mathbf{z}\| = r$,
+  \item Żaden wymiar nie jest ``ważniejszy'' od innego.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/isotropic_gaussian_3d.pdf}
+\caption{Gęstość izotropowego Gaussa $\mathcal{N}(\mathbf{0}, \mathbf{I}_2)$.
+\textbf{Lewo}: powierzchnia 3D. \textbf{Prawo}: izolinie tworzą koncentryczne okręgi —
+cecha izotropii.}
+\label{fig:3d}
+\end{figure}
+
+\subsection{Izotropowy vs.\ anizotropowy vs.\ kolaps}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/isotropic_vs_anisotropic_2d.pdf}
+\caption{Trzy scenariusze embeddingów 2D. \textbf{Lewo}: izotropowy Gauss —
+równomierne rozłożenie we wszystkich kierunkach.
+\textbf{Środek}: anizotropowy — informacja skoncentrowana wzdłuż jednej osi.
+\textbf{Prawo}: kolaps — brak jakiejkolwiek informacji.
+Czerwone strzałki to wektory własne macierzy kowariancji.}
+\label{fig:2d}
+\end{figure}
+

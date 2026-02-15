@@ -1,0 +1,401 @@
+\clearpage
+%% ============================================================
+\section{Wyprowadzenie: rozkład Gaussa od 1D do 3D}
+\label{sec:wyprowadzenie}
+%% ============================================================
+
+Zaczynamy od jednego wymiaru i krok po kroku budujemy intuicję aż do 3D.
+
+% --- 1D ---
+\subsection{Punkt wyjścia: Gauss w 1D}
+
+Rozkład normalny jednej zmiennej $z \in \mathbb{R}$ o średniej $\mu$ i wariancji $\sigma^2$:
+
+\begin{equation}
+\boxed{
+p(z) = \frac{1}{\sqrt{2\pi\sigma^2}}\;\exp\!\left(-\frac{(z-\mu)^2}{2\sigma^2}\right)
+}
+\tag{1D}
+\label{eq:1d}
+\end{equation}
+
+\textbf{Skąd ten wzór?} Rozbijamy go na kawałki:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.8}
+\begin{tabular}{cp{10.5cm}}
+\toprule
+\textbf{Kawałek} & \textbf{Co robi?} \\
+\midrule
+$(z - \mu)^2$ &
+Kwadrat odległości od średniej. Im dalej od $\mu$, tym większa wartość. \\
+$\dfrac{(z-\mu)^2}{2\sigma^2}$ &
+Normalizuje odległość przez wariancję.
+\textbf{Czym jest $\sigma^2$?} To miara \textbf{rozrzutu} wartości wokół średniej $\mu$
+-- jak daleko na lewo i prawo od $\mu$ ``sięga'' rozkład.
+Odchylenie standardowe $\sigma = \sqrt{\sigma^2}$ ma tę samą jednostkę co dane
+i wyznacza \textbf{charakterystyczną szerokość} rozkładu:
+\newline\newline
+\begin{tabular}{@{}ll@{}}
+$\bullet$ $\sim$68\% wartości leży w $[\mu - \sigma, \;\; \mu + \sigma]$ & (``1 sigma'') \\
+$\bullet$ $\sim$95\% wartości leży w $[\mu - 2\sigma, \; \mu + 2\sigma]$ & (``2 sigma'') \\
+$\bullet$ $\sim$99.7\% wartości leży w $[\mu - 3\sigma, \; \mu + 3\sigma]$ & (``3 sigma'')
+\end{tabular}
+\newline\newline
+Przykład: jeśli $\mu = 0$ i $\sigma = 1$, to $\sim$68\% wartości leży w $[-1, +1]$.
+Jeśli $\sigma = 2$, rozkład jest $2\times$ szerszy: $\sim$68\% w~$[-2, +2]$.
+Jeśli $\sigma = 0.5$, rozkład jest $2\times$ węższy: $\sim$68\% w~$[-0.5, +0.5]$.
+\newline\newline
+\textbf{Dlaczego $2$ w~mianowniku?} Dwójka gwarantuje, że parametr $\sigma^2$ we wzorze
+jest \textit{dokładnie równy} wariancji rozkładu, tj.\ $\text{Var}[Z] = \int (z-\mu)^2 p(z)\,dz = \sigma^2$.
+Gdybyśmy napisali $\exp(-(z-\mu)^2/\sigma^2)$ bez dwójki,
+otrzymalibyśmy rozkład o wariancji $\sigma^2/2$, nie~$\sigma^2$
+-- parametr $\sigma^2$ nie odpowiadałby rzeczywistemu rozrzutowi danych. \\
+$\exp\!\left(-\dfrac{(z-\mu)^2}{2\sigma^2}\right)$ &
+Zamienia odległość na \textbf{prawdopodobieństwo}. Minus w wykładniku = im dalej od $\mu$, tym \textit{mniejsze} $p(z)$. Funkcja $e^{-x}$ maleje szybko! \\
+$\dfrac{1}{\sqrt{2\pi\sigma^2}}$ &
+\textbf{Stała normalizacyjna} — gwarantuje, że $\int_{-\infty}^{\infty} p(z)\,dz = 1$.
+Bez niej to nie byłby rozkład prawdopodobieństwa. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{remark}
+Przypadek standardowy ($\mu = 0$, $\sigma^2 = 1$):
+\begin{equation}
+p(z) = \frac{1}{\sqrt{2\pi}}\;e^{-z^2/2}
+\end{equation}
+To jest ten rozkład, którego chcemy dla embeddingów w LeJEPA!
+\end{remark}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/gauss_decomposition.pdf}
+\caption{Dekompozycja wzoru 1D Gaussa.
+Zielona linia: kwadrat odległości $z^2/2$ rośnie od środka.
+Czerwona: eksponenta $e^{-z^2/2}$ zamienia odległość na malejącą wagę.
+Niebieska: wynik po przeskalowaniu stałą $1/\sqrt{2\pi}$.}
+\label{fig:decomposition}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/gauss_1d.pdf}
+\caption{\textbf{Lewo}: wpływ wariancji $\sigma^2$ — im większa, tym szerszy i niższy rozkład
+(ale pole pod krzywą zawsze $= 1$).
+\textbf{Prawo}: wpływ średniej $\mu$ — przesuwa ``dzwonek'' w prawo lub lewo.}
+\label{fig:gauss1d}
+\end{figure}
+
+% --- 2D ---
+\subsection{Wyprowadzenie: Gauss w 2D}
+
+Mamy wektor $\mathbf{z} = \begin{pmatrix} z_1 \\ z_2 \end{pmatrix} \in \mathbb{R}^2$.
+Chcemy znaleźć $p(z_1, z_2)$.
+
+\subsubsection{Krok 1: Zakładamy niezależność}
+
+Jeśli $z_1$ i $z_2$ są \textbf{niezależne}, to ich łączne prawdopodobieństwo jest iloczynem:
+
+\begin{align}
+p(z_1, z_2) &= p(z_1) \cdot p(z_2) \nonumber\\
+&= \frac{1}{\sqrt{2\pi\sigma_1^2}}\exp\!\left(-\frac{(z_1-\mu_1)^2}{2\sigma_1^2}\right)
+\cdot
+\frac{1}{\sqrt{2\pi\sigma_2^2}}\exp\!\left(-\frac{(z_2-\mu_2)^2}{2\sigma_2^2}\right)
+\label{eq:2d_step1}
+\end{align}
+
+\subsubsection{Krok 2: Łączymy stałe normalizacyjne}
+
+\begin{equation}
+\frac{1}{\sqrt{2\pi\sigma_1^2}} \cdot \frac{1}{\sqrt{2\pi\sigma_2^2}}
+= \frac{1}{2\pi\,\sigma_1\sigma_2}
+\label{eq:2d_step2}
+\end{equation}
+
+Bo $\sqrt{a} \cdot \sqrt{b} = \sqrt{ab}$, więc
+$\sqrt{2\pi\sigma_1^2} \cdot \sqrt{2\pi\sigma_2^2} = \sqrt{(2\pi)^2 \sigma_1^2\sigma_2^2} = 2\pi\,\sigma_1\sigma_2$.
+
+\subsubsection{Krok 3: Łączymy wykładniki}
+
+Właściwość eksponenty: $e^a \cdot e^b = e^{a+b}$, więc:
+
+\begin{equation}
+\exp\!\left(-\frac{(z_1-\mu_1)^2}{2\sigma_1^2}\right)
+\cdot
+\exp\!\left(-\frac{(z_2-\mu_2)^2}{2\sigma_2^2}\right)
+= \exp\!\left(-\frac{(z_1-\mu_1)^2}{2\sigma_1^2} - \frac{(z_2-\mu_2)^2}{2\sigma_2^2}\right)
+\label{eq:2d_step3}
+\end{equation}
+
+\subsubsection{Krok 4: Zapisujemy w notacji macierzowej}
+
+Definiujemy:
+\begin{equation}
+\boldsymbol{\mu} = \begin{pmatrix} \mu_1 \\ \mu_2 \end{pmatrix}, \qquad
+\boldsymbol{\Sigma} = \begin{pmatrix} \sigma_1^2 & 0 \\ 0 & \sigma_2^2 \end{pmatrix}
+\quad \text{(macierz kowariancji, diagonalna bo niezależne)}
+\end{equation}
+
+Wtedy:
+\begin{equation}
+\boldsymbol{\Sigma}^{-1} = \begin{pmatrix} 1/\sigma_1^2 & 0 \\ 0 & 1/\sigma_2^2 \end{pmatrix},
+\qquad
+\det(\boldsymbol{\Sigma}) = \sigma_1^2 \cdot \sigma_2^2
+\end{equation}
+
+Wykładnik możemy zapisać jako \textbf{formę kwadratową}:
+\begin{align}
+\frac{(z_1-\mu_1)^2}{\sigma_1^2} + \frac{(z_2-\mu_2)^2}{\sigma_2^2}
+&= \begin{pmatrix} z_1-\mu_1 & z_2-\mu_2 \end{pmatrix}
+\begin{pmatrix} 1/\sigma_1^2 & 0 \\ 0 & 1/\sigma_2^2 \end{pmatrix}
+\begin{pmatrix} z_1-\mu_1 \\ z_2-\mu_2 \end{pmatrix} \nonumber\\
+&= (\mathbf{z} - \boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1} (\mathbf{z} - \boldsymbol{\mu})
+\label{eq:quadratic}
+\end{align}
+
+\subsubsection{Krok 5: Wynik — Gauss 2D (niezależne)}
+
+Składamy wszystko:
+
+\begin{equation}
+\boxed{
+p(\mathbf{z}) = p(z_1, z_2) =
+\frac{1}{2\pi\,\sigma_1\sigma_2}
+\;\exp\!\left(
+-\frac{1}{2}(\mathbf{z}-\boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1} (\mathbf{z}-\boldsymbol{\mu})
+\right)
+}
+\tag{2D-diag}
+\label{eq:2d_diag}
+\end{equation}
+
+\subsubsection{Krok 6: Uogólnienie — z korelacją}
+
+Co jeśli $z_1$ i $z_2$ \textit{nie} są niezależne? Wtedy macierz kowariancji ma elementy pozadiagonalne:
+
+\begin{equation}
+\boldsymbol{\Sigma} = \begin{pmatrix}
+\sigma_1^2 & \rho\,\sigma_1\sigma_2 \\
+\rho\,\sigma_1\sigma_2 & \sigma_2^2
+\end{pmatrix}
+\end{equation}
+
+gdzie $\rho \in [-1,1]$ to \textbf{współczynnik korelacji} Pearsona.
+
+Wzór ma \textit{identyczną strukturę}, zmienia się tylko $\boldsymbol{\Sigma}$:
+
+\begin{equation}
+\boxed{
+p(\mathbf{z}) =
+\frac{1}{2\pi\sqrt{\det(\boldsymbol{\Sigma})}}
+\;\exp\!\left(
+-\frac{1}{2}(\mathbf{z}-\boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1} (\mathbf{z}-\boldsymbol{\mu})
+\right)
+}
+\tag{2D}
+\label{eq:2d_full}
+\end{equation}
+
+\begin{keyinsight}[Sprawdzenie: stała normalizacyjna]
+Dla 2D:
+$\dfrac{1}{\sqrt{(2\pi)^2 \det(\boldsymbol{\Sigma})}} = \dfrac{1}{2\pi\sqrt{\det(\boldsymbol{\Sigma})}}$.
+
+\medskip
+Gdy $\rho = 0$ (niezależne): $\det(\boldsymbol{\Sigma}) = \sigma_1^2\sigma_2^2$,
+więc $\sqrt{\det(\boldsymbol{\Sigma})} = \sigma_1\sigma_2$ — zgadza się z \eqref{eq:2d_diag}!
+\end{keyinsight}
+
+\subsubsection{Rozpiszmy wykładnik z korelacją (do ćwiczenia)}
+
+\begin{align}
+\boldsymbol{\Sigma}^{-1} &= \frac{1}{\sigma_1^2\sigma_2^2(1-\rho^2)}
+\begin{pmatrix}
+\sigma_2^2 & -\rho\,\sigma_1\sigma_2 \\
+-\rho\,\sigma_1\sigma_2 & \sigma_1^2
+\end{pmatrix}
+\label{eq:sigma_inv_2d}
+\end{align}
+
+Więc wykładnik:
+\begin{align}
+(\mathbf{z}-\boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1} (\mathbf{z}-\boldsymbol{\mu})
+&= \frac{1}{1-\rho^2}\left[
+\frac{(z_1-\mu_1)^2}{\sigma_1^2}
+- \frac{2\rho(z_1-\mu_1)(z_2-\mu_2)}{\sigma_1\sigma_2}
++ \frac{(z_2-\mu_2)^2}{\sigma_2^2}
+\right]
+\label{eq:exponent_2d}
+\end{align}
+
+\begin{remark}
+Gdy $\rho = 0$: czynnik $\frac{1}{1-\rho^2} = 1$ i wyraz mieszany znika — wracamy do przypadku niezależnego.
+\end{remark}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/gauss_2d_types.pdf}
+\caption{Trzy typy rozkładu Gaussa 2D.
+\textbf{Lewo}: izotropowy ($\boldsymbol{\Sigma} = \mathbf{I}$) — izolinie to okręgi.
+\textbf{Środek}: diagonalny anizotropowy ($\sigma_1^2 \neq \sigma_2^2$) — elipsy wzdłuż osi.
+\textbf{Prawo}: z korelacją ($\rho = 0.8$) — obrócone elipsy.
+Czerwone strzałki: wektory własne $\boldsymbol{\Sigma}$ (kierunki główne).}
+\label{fig:gauss2d_types}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/gauss_isolines.pdf}
+\caption{Izolinie gęstości 2D — kształt mówi wszystko o macierzy kowariancji.
+\textbf{Okręgi} = izotropowy. \textbf{Elipsy wzdłuż osi} = diagonalny.
+\textbf{Obrócone elipsy} = korelacja.
+Wartości własne $\lambda_1, \lambda_2$ określają długości półosi.}
+\label{fig:isolines}
+\end{figure}
+
+\bigskip
+
+% --- 3D ---
+\subsection{Wyprowadzenie: Gauss w 3D}
+
+Teraz $\mathbf{z} = \begin{pmatrix} z_1 \\ z_2 \\ z_3 \end{pmatrix} \in \mathbb{R}^3$.
+Procedura jest identyczna!
+
+\subsubsection{Krok 1: Definiujemy parametry}
+
+\begin{equation}
+\boldsymbol{\mu} = \begin{pmatrix} \mu_1 \\ \mu_2 \\ \mu_3 \end{pmatrix}, \qquad
+\boldsymbol{\Sigma} = \begin{pmatrix}
+\sigma_1^2 & \sigma_{12} & \sigma_{13} \\
+\sigma_{12} & \sigma_2^2 & \sigma_{23} \\
+\sigma_{13} & \sigma_{23} & \sigma_3^2
+\end{pmatrix}
+\end{equation}
+
+gdzie $\sigma_{ij} = \mathrm{Cov}(z_i, z_j)$ to kowariancje (korelacje przeskalowane).
+
+\subsubsection{Krok 2: Wzór ogólny}
+
+\begin{equation}
+\boxed{
+p(\mathbf{z}) =
+\frac{1}{(2\pi)^{3/2}\sqrt{\det(\boldsymbol{\Sigma})}}
+\;\exp\!\left(
+-\frac{1}{2}(\mathbf{z}-\boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1} (\mathbf{z}-\boldsymbol{\mu})
+\right)
+}
+\tag{3D}
+\label{eq:3d_full}
+\end{equation}
+
+\subsubsection{Krok 3: Przypadek niezależny ($\boldsymbol{\Sigma}$ diagonalna)}
+
+\begin{equation}
+\boldsymbol{\Sigma} = \begin{pmatrix}
+\sigma_1^2 & 0 & 0 \\
+0 & \sigma_2^2 & 0 \\
+0 & 0 & \sigma_3^2
+\end{pmatrix}
+\;\Rightarrow\;
+\boldsymbol{\Sigma}^{-1} = \begin{pmatrix}
+1/\sigma_1^2 & 0 & 0 \\
+0 & 1/\sigma_2^2 & 0 \\
+0 & 0 & 1/\sigma_3^2
+\end{pmatrix}
+\end{equation}
+
+Wtedy $\det(\boldsymbol{\Sigma}) = \sigma_1^2\,\sigma_2^2\,\sigma_3^2$ i:
+
+\begin{align}
+p(z_1,z_2,z_3) &=
+\frac{1}{(2\pi)^{3/2}\,\sigma_1\sigma_2\sigma_3}
+\;\exp\!\left(
+-\frac{(z_1-\mu_1)^2}{2\sigma_1^2}
+-\frac{(z_2-\mu_2)^2}{2\sigma_2^2}
+-\frac{(z_3-\mu_3)^2}{2\sigma_3^2}
+\right) \nonumber\\
+&= \underbrace{\frac{e^{-(z_1-\mu_1)^2/(2\sigma_1^2)}}{\sqrt{2\pi}\,\sigma_1}}_{p(z_1)}
+\cdot
+\underbrace{\frac{e^{-(z_2-\mu_2)^2/(2\sigma_2^2)}}{\sqrt{2\pi}\,\sigma_2}}_{p(z_2)}
+\cdot
+\underbrace{\frac{e^{-(z_3-\mu_3)^2/(2\sigma_3^2)}}{\sqrt{2\pi}\,\sigma_3}}_{p(z_3)}
+\label{eq:3d_indep}
+\end{align}
+
+\begin{keyinsight}[Wzorzec: iloczyn niezależnych = suma w wykładniku]
+Niezależność w 3D oznacza, że łączna gęstość \textbf{faktoryzuje się} na iloczyn trzech 1D Gaussów.
+W wykładniku: iloczyn $e^a \cdot e^b \cdot e^c = e^{a+b+c}$.
+\end{keyinsight}
+
+\subsubsection{Krok 4: Przypadek izotropowy (LeJEPA!)}
+
+Izotropowy = niezależne \textit{i} jednakowa wariancja: $\sigma_1^2 = \sigma_2^2 = \sigma_3^2 = 1$, $\boldsymbol{\mu} = \mathbf{0}$:
+
+\begin{equation}
+\boxed{
+p(\mathbf{z}) = \frac{1}{(2\pi)^{3/2}}
+\;\exp\!\left(-\frac{z_1^2 + z_2^2 + z_3^2}{2}\right)
+= \frac{1}{(2\pi)^{3/2}}
+\;\exp\!\left(-\frac{\|\mathbf{z}\|^2}{2}\right)
+}
+\tag{3D-iso}
+\label{eq:3d_iso}
+\end{equation}
+
+Izolinie gęstości ($p(\mathbf{z}) = \mathrm{const}$) to \textbf{sfery}:
+$\|\mathbf{z}\|^2 = z_1^2 + z_2^2 + z_3^2 = r^2$.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/gauss_3d_surfaces.pdf}
+\caption{Powierzchnie gęstości 3D (wyświetlamy $p(z_1,z_2)$ dla 2 zmiennych).
+\textbf{Lewo}: izotropowy — symetryczny ``dzwonek''.
+\textbf{Prawo}: anizotropowy ($\sigma_1^2=3, \sigma_2^2=0.3$) — wydłużony grzbiet.
+W 3D pełnym izolinie to sfery (izotropowy) vs.\ elipsoidy (anizotropowy).}
+\label{fig:gauss3d}
+\end{figure}
+
+% --- General K-D ---
+\subsection{Uogólnienie: Gauss w $K$ wymiarach}
+
+Wzorzec jest jasny — w $K$ wymiarach ($K = 384$ dla ViT-Small):
+
+\begin{equation}
+\boxed{
+p(\mathbf{z}) =
+\frac{1}{(2\pi)^{K/2}\sqrt{\det(\boldsymbol{\Sigma})}}
+\;\exp\!\left(
+-\frac{1}{2}(\mathbf{z}-\boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1} (\mathbf{z}-\boldsymbol{\mu})
+\right)
+}
+\tag{$K$D}
+\label{eq:kd}
+\end{equation}
+
+Dla izotropowego ($\boldsymbol{\mu} = \mathbf{0}$, $\boldsymbol{\Sigma} = \mathbf{I}_K$):
+
+\begin{equation}
+\boxed{
+p(\mathbf{z}) = \frac{1}{(2\pi)^{K/2}}
+\;\exp\!\left(-\frac{\|\mathbf{z}\|^2}{2}\right)
+= \frac{1}{(2\pi)^{K/2}}
+\;\exp\!\left(-\frac{1}{2}\sum_{k=1}^{K} z_k^2\right)
+}
+\tag{$K$D-iso}
+\label{eq:kd_iso}
+\end{equation}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Wymiar} & \textbf{Stała normalizacyjna} & \textbf{Wykładnik (iso)} & \textbf{Izolinie} \\
+\midrule
+1D & $\dfrac{1}{\sqrt{2\pi}}$ & $-\dfrac{z^2}{2}$ & punkty $z = \pm r$ \\[0.7em]
+2D & $\dfrac{1}{2\pi}$ & $-\dfrac{z_1^2+z_2^2}{2}$ & okręgi \\[0.7em]
+3D & $\dfrac{1}{(2\pi)^{3/2}}$ & $-\dfrac{z_1^2+z_2^2+z_3^2}{2}$ & sfery \\[0.7em]
+$K$D & $\dfrac{1}{(2\pi)^{K/2}}$ & $-\dfrac{\sum_k z_k^2}{2}$ & hipersfery \\
+\bottomrule
+\end{tabular}
+\end{center}
+

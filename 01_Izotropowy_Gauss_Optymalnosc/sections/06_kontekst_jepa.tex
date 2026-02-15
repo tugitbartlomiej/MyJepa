@@ -1,0 +1,20 @@
+\clearpage
+%% ============================================================
+\section{Kontekst: Co robi encoder w JEPA?}
+%% ============================================================
+
+Encoder $f_\theta: \mathbb{R}^D \to \mathbb{R}^K$ mapuje dane wejściowe (np.\ ramki wideo)
+do embeddingów w przestrzeni $K$-wymiarowej. Te embeddingi muszą spełniać dwa warunki:
+
+\begin{enumerate}[label=(\roman*)]
+  \item \textbf{Predykcja}: embedding widoku $v$ powinien być przewidywalny z embeddingu widoku $v'$,
+  \item \textbf{Brak degeneracji}: embeddingi nie mogą się ``zkolapsować'' do jednego punktu.
+\end{enumerate}
+
+\begin{keyinsight}[Fundamentalne pytanie]
+Jaki \textbf{rozkład} $P_\theta$ powinny mieć embeddingi $\mathbf{z} = f_\theta(\mathbf{x})$,
+aby encoder był najlepszy na \textit{dowolnym} przyszłym zadaniu downstream?
+\end{keyinsight}
+
+Odpowiedź LeJEPA: \textbf{izotropowy Gauss} $\mathcal{N}(\mathbf{0}, \mathbf{I}_K)$.
+

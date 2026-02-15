@@ -1,0 +1,100 @@
+\clearpage
+%% ============================================================
+\section{Jak to wymusić? SIGReg}
+\label{sec:sigreg}
+%% ============================================================
+
+Skoro wiemy, że embeddingi powinny mieć rozkład $\mathcal{N}(\mathbf{0}, \mathbf{I}_K)$,
+potrzebujemy mechanizmu, który to wymusi podczas treningu.
+
+\subsection{Idea: test statystyczny jako loss}
+
+Zamiast heurystyk (whitening, stop-gradient, teacher-student), LeJEPA używa
+\textbf{testu hipotez}:
+\begin{equation}
+H_0: P_\theta = \mathcal{N}(\mathbf{0}, \mathbf{I}_K)
+\quad \text{vs.} \quad
+H_1: P_\theta \neq \mathcal{N}(\mathbf{0}, \mathbf{I}_K)
+\end{equation}
+
+Problem: testowanie w $K$ wymiarach ($K = 128, 384, \ldots$) jest obliczeniowo trudne.
+
+\subsection{Sketching: redukcja do testów 1D}
+
+Kluczowy trik: zamiast testować w $\mathbb{R}^K$, rzutujemy na losowe kierunki $\mathbf{a} \in \mathbb{S}^{K-1}$:
+
+\begin{equation}
+\mathbf{a}^\top \mathbf{z} \sim \mathcal{N}(0, 1) \quad \forall\, \mathbf{a}
+\quad \iff \quad
+\mathbf{z} \sim \mathcal{N}(\mathbf{0}, \mathbf{I}_K)
+\end{equation}
+
+To wynika z \textbf{Lematu Craméra-Wolda}: rozkład wielowymiarowy jest jednoznacznie
+określony przez wszystkie swoje rzuty jednowymiarowe.
+
+\subsection{Test Eppsa-Pulleya na rzutach 1D}
+
+Dla każdego rzutu $u = \mathbf{a}^\top \mathbf{z}$ porównujemy empiryczną funkcję charakterystyczną (ECF) z teoretyczną:
+
+\begin{equation}
+\text{EP} = N \int_{-\infty}^{\infty}
+\left|\hat{\varphi}_X(t) - \varphi_{\mathcal{N}(0,1)}(t)\right|^2 w(t)\,dt
+\label{eq:ep}
+\end{equation}
+
+gdzie:
+\begin{align}
+\hat{\varphi}_X(t) &= \frac{1}{N}\sum_{j=1}^{N} e^{itX_j}
+\quad \text{(empiryczna funkcja charakterystyczna)} \\
+\varphi_{\mathcal{N}(0,1)}(t) &= e^{-t^2/2}
+\quad \text{(CF standardowego Gaussa)} \\
+w(t) &= e^{-t^2/\sigma^2}
+\quad \text{(waga Gaussowska, } \sigma \text{ typowo } = 1\text{)}
+\end{align}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/characteristic_functions.pdf}
+\caption{\textbf{Lewo}: Gęstości rzutów 1D — izotropowy ma $\sigma^2=1$ (cel),
+anizotropowy ma różne wariancje w różnych kierunkach.
+\textbf{Prawo}: Funkcje charakterystyczne i błąd Eppsa-Pulleya —
+różnica między empiryczną CF a docelową $e^{-t^2/2}$.}
+\label{fig:cf}
+\end{figure}
+
+\subsection{SIGReg: pełna definicja}
+
+\begin{definition}[Sketched Isotropic Gaussian Regularization]
+\begin{equation}
+\boxed{
+\mathrm{SIGReg}_T(\mathbb{A}, \{f_\theta(\mathbf{x}_n)\}_{n=1}^N)
+\triangleq \frac{1}{|\mathbb{A}|} \sum_{\mathbf{a} \in \mathbb{A}}
+T\!\left(\{\mathbf{a}^\top f_\theta(\mathbf{x}_n)\}_{n=1}^N\right)
+}
+\label{eq:sigreg}
+\end{equation}
+gdzie $\mathbb{A} = \{\mathbf{a}_1, \ldots, \mathbf{a}_M\}$ to losowe kierunki jednostkowe,
+$T$ to test Eppsa-Pulleya, $M \approx 1024$.
+\end{definition}
+
+\subsection{Dlaczego Epps-Pulley a nie inne testy?}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Test} & \textbf{Gradient} & \textbf{Stabilność} & \textbf{DDP} \\
+\midrule
+Momenty (Jarque-Bera) & eksplodujący & niska & tak \\
+CDF (Cramér-von Mises) & wymaga sortowania & brak & nie \\
+CF (Epps-Pulley) & ograniczony & wysoka & tak \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Epps-Pulley ma:
+\begin{itemize}
+  \item Ograniczony gradient: $|\partial \text{EP}/\partial z_i| \leq 4\sigma^2/N$ (Tw.~4 w artykule),
+  \item Liniową złożoność: $O(N)$ pamięci i czasu,
+  \item Naturalną kompatybilność z DDP: ECF to średnia $\Rightarrow$ \texttt{all\_reduce}.
+\end{itemize}
+
