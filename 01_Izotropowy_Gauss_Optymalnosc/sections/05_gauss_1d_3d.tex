@@ -19,7 +19,1130 @@ p(z) = \frac{1}{\sqrt{2\pi\sigma^2}}\;\exp\!\left(-\frac{(z-\mu)^2}{2\sigma^2}\r
 \label{eq:1d}
 \end{equation}
 
-\textbf{Skąd ten wzór?} Rozbijamy go na kawałki:
+% ---- Pełne wyprowadzenie wzoru Gaussa 1D ----
+
+\medskip
+
+Wzór~\eqref{eq:1d} nie spadł z~nieba --- można go \textbf{wyprowadzić od zera},
+zakładając jedynie kilka naturalnych właściwości. Ale zanim to zrobimy, odpowiedzmy
+na podstawowe pytanie: \textit{po co w~ogóle szukamy takiego wzoru?}
+
+\begin{tcolorbox}[
+  colback=lejepaRed!8,
+  colframe=lejepaRed!80,
+  fonttitle=\bfseries,
+  title={Krok 0: Po co szukamy gęstości prawdopodobieństwa?},
+  breakable,
+]
+
+\textbf{Sytuacja:} masz zbiór liczb --- np.\ zmierzyłeś wzrost 1000~osób i~dostałeś:
+\[
+z_1 = 172{,}3\text{ cm},\quad z_2 = 168{,}1\text{ cm},\quad z_3 = 181{,}7\text{ cm},\quad \ldots,\quad z_{1000} = 175{,}0\text{ cm}
+\]
+
+Możesz narysować \textbf{histogram} --- pogrupować wartości w~przedziały i~policzyć,
+ile pomiarów wpada do każdego:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{lc}
+\toprule
+\textbf{Przedział [cm]} & \textbf{Ile osób?} \\
+\midrule
+$[155, 160)$ & 42 \\
+$[160, 165)$ & 128 \\
+$[165, 170)$ & 241 \\
+$[170, 175)$ & 287 \\
+$[175, 180)$ & 198 \\
+$[180, 185)$ & 82 \\
+$[185, 190)$ & 22 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Histogram daje obraz danych, ale ma problemy:
+\begin{itemize}[leftmargin=*]
+\item Zależy od szerokości przedziałów (5~cm? 2~cm? 10~cm?) --- ten sam zbiór daje różne histogramy.
+\item Nie powie ci wprost: ``jakie jest prawdopodobieństwo, że losowa osoba ma wzrost
+  między 171{,}2 a~173{,}8~cm?''
+\item Nie uogólnia --- jeśli zmierzysz kolejne 1000~osób, histogram będzie trochę inny.
+\end{itemize}
+
+\medskip
+\textbf{Rozwiązanie:} zamiast histogramu szukamy \textbf{gładkiej funkcji} $p(z)$,
+która opisuje ``kształt'' danych --- \textbf{gęstość prawdopodobieństwa}.
+
+\medskip
+\textbf{Co robi $p(z)$?} Odpowiada na pytanie:
+``Jakie jest prawdopodobieństwo, że losowa wartość wpadnie w~mały przedział $[a, b]$?''
+\begin{equation}
+\Pr(a \leq Z \leq b) = \int_a^b p(z)\,dz
+\label{eq:density_meaning}
+\end{equation}
+
+Geometrycznie: prawdopodobieństwo = \textbf{pole pod krzywą} $p(z)$ między $a$ i~$b$.
+
+\medskip
+\textbf{Ważne:} $p(z)$ sama w~sobie \textit{nie jest} prawdopodobieństwem!
+To \textit{gęstość} --- $p(z)\,dz$ mówi, ile prawdopodobieństwa przypada na malutki
+odcinek $dz$ w~okolicy punktu $z$.
+Dlatego $p(z)$ może być $> 1$ (np.\ $p(0) = \frac{1}{\sqrt{2\pi}} \cdot 10 \approx 3{,}99$
+dla $\mathcal{N}(0, 0{,}01)$), ale całka $\int p(z)\,dz = 1$ zawsze.
+
+\bigskip
+\textbf{Dlaczego to jest przydatne?}
+
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Kompresja:} zamiast pamiętać 1000~liczb, pamiętasz 2~parametry ($\mu$ i~$\sigma^2$)
+  --- i~z~nich odtworzysz cały ``kształt'' danych.
+\item \textbf{Generalizacja:} $p(z)$ pozwala mówić o~wartościach, których \textit{jeszcze nie widziałeś}
+  --- np.\ ``osoba o~wzroście 192~cm jest mało prawdopodobna, ale nie niemożliwa''.
+\item \textbf{Obliczenia:} mając $p(z)$, możesz liczyć dowolne statystyki analitycznie
+  (średnią, wariancję, kwantyle, prawdopodobieństwa zdarzeń).
+\item \textbf{Modelowanie:} w~fizyce, ML, finansach --- wszędzie modelujemy niepewność
+  właśnie przez gęstość prawdopodobieństwa.
+\end{enumerate}
+
+\medskip
+\textbf{Nasze pytanie} brzmi więc: \textit{jaki kształt powinna mieć $p(z)$?}
+Jeśli jedyne, co wiemy, to średnia $\mu$ i~rozrzut $\sigma^2$
+--- istnieje dokładnie jeden ``najuczciwszy'' wybór. Wyprowadzamy go poniżej.
+\end{tcolorbox}
+
+\bigskip
+
+Pełne rozumowanie w~5~krokach:
+
+\begin{tcolorbox}[
+  colback=lejepaGreen!8,
+  colframe=lejepaGreen!80,
+  fonttitle=\bfseries,
+  title={Krok 1: Jakich właściwości oczekujemy od rozkładu?},
+  breakable,
+]
+Szukamy gęstości prawdopodobieństwa $p(z)$ spełniającej:
+\begin{enumerate}[label=(\alph*)]
+\item $p(z) \geq 0$ dla każdego $z \in \mathbb{R}$ \quad i \quad $\displaystyle\int_{-\infty}^{\infty} p(z)\,dz = 1$ \hfill (rozkład prawdopodobieństwa)
+\item Zadana średnia: $\displaystyle\int_{-\infty}^{\infty} z\,p(z)\,dz = \mu$ \hfill (położenie ``centrum'')
+\item Zadana wariancja: $\displaystyle\int_{-\infty}^{\infty} (z-\mu)^2\,p(z)\,dz = \sigma^2$ \hfill (rozrzut wokół centrum)
+\item \textbf{Maksymalna entropia} --- spośród wszystkich rozkładów spełniających (a)--(c) wybieramy ten,
+  który zawiera \textit{najmniej dodatkowej struktury}, czyli \textbf{maksymalizuje entropię}:
+  \[
+  H[p] = -\int_{-\infty}^{\infty} p(z)\ln p(z)\,dz \;\to\; \max
+  \]
+\end{enumerate}
+
+Ale co to właściwie jest ta entropia i~dlaczego ją maksymalizujemy?
+Wyjaśniamy poniżej.
+\end{tcolorbox}
+
+% ---- Dygresja: czym jest entropia i dlaczego ją maksymalizujemy ----
+
+\begin{tcolorbox}[
+  colback=lejepaRed!8,
+  colframe=lejepaRed!80,
+  fonttitle=\bfseries,
+  title={Dygresja: czym jest entropia? Przykład z~kostką do gry},
+  breakable,
+]
+
+Zanim przejdziemy do ciągłej formuły z~całką, zbudujmy intuicję na \textbf{prostym,
+dyskretnym przykładzie} --- kostce do gry.
+
+\bigskip
+
+% ===== PRZYKŁAD 1: uczciwa kostka =====
+\textbf{Przykład 1: uczciwa kostka (6~ścian, każda równie prawdopodobna).}
+
+\medskip
+
+Prawdopodobieństwa: $p_1 = p_2 = \ldots = p_6 = \frac{1}{6}$.
+
+Entropia Shannona dla rozkładu dyskretnego to:
+\begin{equation}
+H = -\sum_{i=1}^{n} p_i \ln p_i
+\label{eq:entropy_discrete}
+\end{equation}
+
+Ale zanim podstawimy liczby, odpowiedzmy na pytanie:
+\textbf{co ta liczba $H$ właściwie mierzy?}
+
+\bigskip
+
+\textbf{Interpretacja 1: ile pytań tak/nie potrzebujesz?}
+
+Wyobraź sobie grę: ktoś rzuca kostką, ty nie widzisz wyniku i~musisz go odgadnąć
+zadając pytania \textbf{tak/nie} (np.\ ``czy wypadło $\leq 3$?'').
+
+\begin{itemize}[leftmargin=*]
+\item Jeśli kostka jest uczciwa --- potrzebujesz \textit{średnio} $\sim 2{,}6$ pytań
+  (bo $\log_2 6 \approx 2{,}58$).
+\item Jeśli kostka zawsze daje 6 --- potrzebujesz \textit{zero} pytań (znasz odpowiedź z~góry).
+\item Jeśli kostka prawie zawsze daje 6 --- potrzebujesz \textit{prawie zero} pytań
+  (``czy to 6?'' i~prawie zawsze ``tak'').
+\end{itemize}
+
+Entropia $H$ mierzy właśnie tę \textbf{średnią liczbę pytań}.
+(Technicznie: $H$ z~logarytmem naturalnym $\ln$; żeby dostać pytania tak/nie (bity),
+używa się $\log_2$. Różnica to stały mnożnik: $H_{\text{bity}} = H_{\ln} / \ln 2$.
+My używamy $\ln$ bo jest wygodniejszy w~rachunkach z~całkami.)
+
+\bigskip
+
+\textbf{Interpretacja 2: ile ``efektywnych wyników'' jest w~grze?}
+
+Mamy sprytny trik --- obliczamy $e^H$:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{lccp{7cm}}
+\toprule
+\textbf{Sytuacja} & $\boldsymbol{H}$ & $\boldsymbol{e^H}$ & \textbf{Znaczenie} \\
+\midrule
+Pewny wynik & $0$ & $e^0 = 1$ & Tak jakby był 1~możliwy wynik \\
+Rzut monetą & $\ln 2 = 0{,}69$ & $e^{0{,}69} = 2$ & 2~równie prawdopodobne wyniki \\
+Uczciwa kostka & $\ln 6 = 1{,}79$ & $e^{1{,}79} = 6$ & 6~równie prawdopodobnych wyników \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+$e^H$ mówi: ``ta sytuacja jest \textbf{tak nieprzewidywalna}, jakby było $e^H$
+równie prawdopodobnych wyników''.
+
+Dla uczciwej kostki: $e^H = 6$ --- co jest oczywiste, bo jest dokładnie 6~równie
+prawdopodobnych ścian. Ale ta interpretacja działa też dla \textit{nierównomiernych}
+rozkładów --- zobaczmy!
+
+\bigskip
+
+Teraz podstawiamy liczby.
+
+\bigskip
+
+\textbf{Przykład 1 (cd.): uczciwa kostka.}
+
+Każdy z~6~wyrazów sumy jest identyczny:
+\begin{align}
+H &= -\sum_{i=1}^{6} \frac{1}{6}\,\ln\frac{1}{6}
+= -\;6 \cdot \frac{1}{6}\,\ln\frac{1}{6}
+= -\ln\frac{1}{6} \nonumber\\
+&= \ln 6 \approx 1{,}79
+\label{eq:H_fair_die}
+\end{align}
+
+$e^H = e^{\ln 6} = 6$ efektywnych wyników --- zgadza się, bo \textit{wszystkie}
+6~ścian mają równe szanse.
+
+\bigskip
+
+A~teraz kluczowe pytanie: co się stanie, gdy kostka jest \textit{oszukana}?
+
+\bigskip
+
+% ===== PRZYKŁAD 2: oszukana kostka =====
+\textbf{Przykład 2: oszukana kostka (``szóstka'' wypada prawie zawsze).}
+
+\medskip
+
+Prawdopodobieństwa: $p_1 = p_2 = p_3 = p_4 = p_5 = 0{,}02$, \quad $p_6 = 0{,}90$.
+
+Kostka ma 6~ścian, ale $\sim$90\% czasu wypada szóstka.
+Pozostałe ściany prawie się nie liczą.
+
+Podstawiamy do tego samego wzoru~\eqref{eq:entropy_discrete}:
+\begin{align}
+H &= -\Big[\underbrace{5 \cdot 0{,}02\,\ln(0{,}02)}_{\text{5 mało prawdopodobnych ścian}}
+  + \underbrace{0{,}90\,\ln(0{,}90)}_{\text{prawie pewna szóstka}}\Big] \nonumber\\
+&= -\Big[5 \cdot 0{,}02 \cdot (-3{,}912) + 0{,}90 \cdot (-0{,}105)\Big] \nonumber\\
+&= -\Big[-0{,}391 + (-0{,}095)\Big]
+= -(-0{,}486) \nonumber\\
+&= 0{,}486
+\label{eq:H_loaded_die}
+\end{align}
+
+$e^H = e^{0{,}486} \approx 1{,}63$ efektywnych wyników.
+
+\textit{Co to znaczy?}
+Kostka ma fizycznie 6~ścian, ale w~praktyce ``liczy się'' tylko $\sim$1{,}6 wyniku ---
+prawie tylko szóstka, z~rzadka coś innego. Przed rzutem prawie wiesz, co wypadnie.
+
+Porównaj: uczciwa kostka miała $e^H = 6$, a~ta oszukana ma $e^H \approx 1{,}6$.
+\textbf{Im mniejsze $e^H$, tym mniej ``żywych'' wyników --- tym łatwiej zgadnąć.}
+
+\bigskip
+
+% ===== PRZYKŁAD 3: pewny wynik =====
+\textbf{Przykład 3: kostka z~samymi szóstkami.}
+
+\medskip
+
+$p_6 = 1$, reszta $= 0$. Podstawiamy:
+\[
+H = -(1 \cdot \ln 1) = -(1 \cdot 0) = 0
+\]
+
+$e^H = e^0 = 1$ efektywny wynik --- jest \textbf{tylko jeden} możliwy rezultat.
+Zero niepewności, zero pytań potrzebnych do odgadnięcia.
+
+\bigskip
+
+% ===== PODSUMOWANIE TRZECH PRZYKŁADÓW =====
+\textbf{Porównanie:}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{lccl}
+\toprule
+\textbf{Kostka} & $\boldsymbol{H}$ & $\boldsymbol{e^H}$ & \textbf{Interpretacja} \\
+\midrule
+Pewny wynik ($p_6 = 1$) & $0$ & $1$ & 1 wynik --- zero niespodzianki \\
+Oszukana ($p_6 = 0{,}9$) & $0{,}49$ & $1{,}6$ & jakby $\sim$1{,}6 ``żywych'' wyników \\
+Uczciwa ($p_i = \tfrac{1}{6}$) & $1{,}79$ & $6$ & 6 wyników --- \textbf{max niepewność} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{keyinsight}[Co mierzy entropia --- podsumowanie]
+\begin{itemize}[leftmargin=*]
+\item \textbf{Niska entropia} ($H \approx 0$): rozkład jest ``skupiony'' --- kilka wyników dominuje,
+  reszta prawie nie występuje. Łatwo zgadnąć, co wypadnie.
+\item \textbf{Wysoka entropia} ($H$ duże): rozkład jest ``rozproszony'' --- wiele wyników
+  ma istotne prawdopodobieństwo. Trudno zgadnąć.
+\item \textbf{Liczbowo:} $e^H$ = ile ``efektywnych, równie prawdopodobnych wyników'' odpowiada
+  danej niepewności. Dla uczciwej kostki $e^H = 6$, dla oszukanej $e^H \approx 1{,}6$.
+\item Dla ustalonej liczby wyników $n$, entropia jest \textbf{największa} gdy $p_i = 1/n$
+  dla każdego $i$ (rozkład równomierny): $H_{\max} = \ln n$.
+\end{itemize}
+\end{keyinsight}
+
+Wzorzec: im bardziej \textbf{równomiernie} rozłożone prawdopodobieństwo, tym \textbf{wyższa}
+entropia. Uczciwa kostka ma najwyższą entropię spośród wszystkich 6-ściennych kostek
+--- bo nie ``faworyzuje'' żadnej ściany.
+\end{tcolorbox}
+
+\begin{tcolorbox}[
+  colback=lejepaRed!8,
+  colframe=lejepaRed!80,
+  fonttitle=\bfseries,
+  title={Dygresja: od dyskretnej do ciągłej entropii},
+  breakable,
+]
+
+Kostka ma 6~wyników --- ale rozkład wzrostu (albo embeddingów) ma \textit{nieskończenie wiele}
+możliwych wartości na prostej $\mathbb{R}$.
+Jak przejść od sumy do całki?
+
+\bigskip
+
+\textbf{Krok 1: dzielimy prostą na kawałki.}
+
+Wyobraź sobie, że dzielisz oś $z$ na malutkie przedziały o~szerokości $\Delta z$.
+Przedział $i$-ty to $[z_i,\; z_i + \Delta z)$.
+Prawdopodobieństwo wpadnięcia w~$i$-ty przedział:
+\[
+p_i \approx p(z_i)\cdot\Delta z
+\]
+(gęstość $\times$ szerokość = ``pole'' malutkiego prostokąta).
+
+\bigskip
+
+\textbf{Krok 2: wstawiamy do wzoru na entropię dyskretną.}
+
+\begin{align}
+H &= -\sum_i p_i \ln p_i
+= -\sum_i \Big[p(z_i)\,\Delta z\Big]\;\ln\Big[p(z_i)\,\Delta z\Big] \nonumber\\
+&= -\sum_i p(z_i)\,\Delta z\;\Big[\ln p(z_i) + \underbrace{\ln\Delta z}_{\text{stała}}\Big]
+\label{eq:discrete_to_cont}
+\end{align}
+
+Wyraz $\ln\Delta z$ daje stałe przesunięcie (nieskończone w~granicy $\Delta z \to 0$),
+ale \textit{nie wpływa} na to, który rozkład ma \textbf{większą} entropię --- bo przesuwa
+wszystkie o~tyle samo. Dlatego go odrzucamy i~definiujemy \textbf{entropię różniczkową}:
+
+\bigskip
+
+\textbf{Krok 3: granica $\Delta z \to 0$.}
+
+\begin{equation}
+\boxed{
+H[p] = -\int_{-\infty}^{\infty} p(z)\,\ln p(z)\,dz
+}
+\label{eq:diff_entropy}
+\end{equation}
+
+To jest dokładnie ta formuła, która pojawiła się w~Kroku~1.
+
+\bigskip
+
+\textbf{Co oznacza każdy element?}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.6}
+\begin{tabular}{cp{9.5cm}}
+\toprule
+\textbf{Element} & \textbf{Co robi?} \\
+\midrule
+$p(z)$ & Gęstość w~punkcie $z$ --- ``ile prawdopodobieństwa przypada na okolicę $z$''. \\
+$\ln p(z)$ & ``Zaskoczenie'' --- im mniejsze $p(z)$, tym $\ln p(z)$ jest bardziej ujemne
+  (bardziej zaskakujące, jeśli $z$ wypadnie). \\
+$p(z)\cdot\ln p(z)$ & Ważone zaskoczenie --- mnożymy zaskoczenie przez szansę,
+  że ta wartość w~ogóle wypadnie. \\
+$-\displaystyle\int$ & Sumujemy po całej prostej i~odwracamy znak, żeby $H \geq 0$. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\end{tcolorbox}
+
+\begin{tcolorbox}[
+  colback=lejepaRed!8,
+  colframe=lejepaRed!80,
+  fonttitle=\bfseries,
+  title={Dygresja: policzymy entropię dla 4~rozkładów --- liczbowo},
+  breakable,
+]
+
+Wszystkie poniższe rozkłady mają $\mu = 0$, $\sigma^2 = 1$. Liczymy $H$ dla każdego.
+
+\bigskip
+
+% --- Przykład A ---
+\textbf{(A) Rozkład równomierny na $[-\sqrt{3},\; +\sqrt{3}]$.}
+
+Gęstość: $p(z) = \frac{1}{2\sqrt{3}}$ dla $z \in [-\sqrt{3}, \sqrt{3}]$, zero poza.
+
+\begin{align}
+H &= -\int_{-\sqrt{3}}^{\sqrt{3}} \frac{1}{2\sqrt{3}}\;\ln\frac{1}{2\sqrt{3}}\;dz
+= -\ln\frac{1}{2\sqrt{3}} \underbrace{\int_{-\sqrt{3}}^{\sqrt{3}} \frac{1}{2\sqrt{3}}\,dz}_{= 1} \nonumber\\
+&= -\ln\frac{1}{2\sqrt{3}} = \ln(2\sqrt{3}) \approx 1{,}24
+\label{eq:H_uniform}
+\end{align}
+
+(Dlaczego $\sigma^2 = 1$? Bo $\mathrm{Var}[\mathrm{Uniform}(-a,a)] = a^2/3$,
+więc $a = \sqrt{3}$ daje $\sigma^2 = 3/3 = 1$.)
+
+\bigskip
+
+% --- Przykład B ---
+\textbf{(B) Rozkład Laplace'a: $p(z) = \frac{1}{\sqrt{2}}\,e^{-\sqrt{2}\,|z|}$.}
+
+Ma ostry ``szczyt'' w~zerze i~cięższe ogony niż Gauss.
+
+\begin{align}
+H &= -\int_{-\infty}^{\infty} p(z)\,\ln p(z)\,dz
+= 1 + \ln\frac{\sqrt{2}}{\sqrt{2}} + \ln\sqrt{2}
+= 1 + \ln\sqrt{2}
+\approx 1{,}35
+\label{eq:H_laplace}
+\end{align}
+
+(Wzór ogólny na entropię Laplace'a o~skali $b$: $H = 1 + \ln(2b)$;
+tu $b = 1/\sqrt{2}$, więc $H = 1 + \ln(\sqrt{2}) \approx 1{,}35$.)
+
+\bigskip
+
+% --- Przykład C ---
+\textbf{(C) Gauss $\mathcal{N}(0, 1)$: $p(z) = \frac{1}{\sqrt{2\pi}}\,e^{-z^2/2}$.}
+
+\begin{align}
+H &= -\int_{-\infty}^{\infty} p(z)\,\ln p(z)\,dz \nonumber\\
+&= -\int_{-\infty}^{\infty} p(z)\left[-\frac{1}{2}\ln(2\pi) - \frac{z^2}{2}\right]dz \nonumber\\
+&= \frac{1}{2}\ln(2\pi)\underbrace{\int p(z)\,dz}_{=1}
+  + \frac{1}{2}\underbrace{\int z^2\,p(z)\,dz}_{= \sigma^2 = 1} \nonumber\\
+&= \frac{1}{2}\ln(2\pi) + \frac{1}{2}
+= \frac{1}{2}\ln(2\pi e) \approx 1{,}42
+\label{eq:H_gauss}
+\end{align}
+
+\bigskip
+
+% --- Porównanie ---
+\textbf{Porównanie --- ten sam $\mu = 0$, ta sama $\sigma^2 = 1$:}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Rozkład} & \textbf{Entropia $H$} & \textbf{Ranking} \\
+\midrule
+Równomierny $[-\sqrt{3}, \sqrt{3}]$ & $1{,}24$ & 3. \\
+Laplace & $1{,}35$ & 2. \\
+\textbf{Gauss} $\mathcal{N}(0,1)$ & $\boldsymbol{1{,}42}$ & \textbf{1. (max!)} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+
+\textbf{Gauss wygrywa.} I~to nie przypadek --- da się \textit{udowodnić}, że spośród
+\textit{wszystkich} rozkładów o~zadanym $\mu$ i~$\sigma^2$, Gauss ma najwyższą entropię.
+To właśnie robimy w~Kroku~2 wyprowadzenia.
+\end{tcolorbox}
+
+\begin{tcolorbox}[
+  colback=lejepaRed!8,
+  colframe=lejepaRed!80,
+  fonttitle=\bfseries,
+  title={Dygresja: dlaczego \textit{maksymalizujemy} entropię?},
+  breakable,
+]
+
+\textbf{Sytuacja:} wiemy \textit{tylko}, że $\mu = 0$ i~$\sigma^2 = 1$.
+Nic więcej. Który rozkład wybrać spośród tych, które spełniają te warunki?
+
+\medskip
+
+Porównajmy kandydatów --- \textbf{każdy} z~nich ma $\mu = 0$ i~$\sigma^2 = 1$:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.6}
+\begin{tabular}{lcc p{6cm}}
+\toprule
+\textbf{Rozkład} & $\boldsymbol{\mu = 0, \sigma^2 = 1}$\textbf{?}
+  & $\boldsymbol{H}$ & \textbf{Ukryte założenia} \\
+\midrule
+Dwupunktowy $z = \pm 1$ &
+  tak & $0{,}69$ &
+  ``Istnieją \textit{tylko} 2~możliwe wartości'' --- skąd to wiemy? \\
+Laplace $\frac{1}{\sqrt{2}}\,e^{-\sqrt{2}\,|z|}$ &
+  tak & $1{,}22$ &
+  ``Gęstość ma ostry szczyt w~zerze i~opada liniowo w~wykładniku''
+  --- dlaczego liniowo? \\
+Równomierny na $[-\sqrt{3}, \sqrt{3}]$ &
+  tak & $1{,}24$ &
+  ``Poza $\pm\sqrt{3}$ prawdopodobieństwo jest \textit{dokładnie} zero''
+  --- skąd to obcięcie? \\
+\textbf{Gauss} $\mathcal{N}(0, 1)$ &
+  tak & $\boldsymbol{1{,}42}$ &
+  \textbf{Żadnych} dodatkowych założeń! \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+
+Każdy rozkład o~entropii \textit{niższej} niż Gauss zawiera jakieś \textbf{dodatkowe założenie},
+którego nie uzasadniają nasze dane:
+\begin{itemize}[leftmargin=*]
+\item Dwupunktowy zakłada, że mogą wystąpić TYLKO dwie wartości --- to bardzo silne twierdzenie,
+  którego nic nie uzasadnia.
+\item Równomierny zakłada ostre obcięcie --- skąd wiemy,
+  że $|z| > \sqrt{3}$ jest \textit{niemożliwe}?
+\item Laplace zakłada konkretny kształt ogonów (wykładniczy, nie kwadratowy).
+\end{itemize}
+
+\medskip
+
+\textbf{Gauss nie zakłada nic ponad $\mu$ i~$\sigma^2$.}
+Dlatego jego entropia jest najwyższa --- nie ``marnuje'' prawdopodobieństwa
+na nieuzasadnione szczegóły.
+
+\begin{keyinsight}[Zasada maksymalnej entropii (Jaynes, 1957)]
+Jeśli jedyne, co wiesz o~rozkładzie, to pewne momenty (średnia, wariancja, \ldots),
+wybierz rozkład o~\textbf{największej entropii} spośród tych, które spełniają te ograniczenia.
+
+\medskip
+\textbf{Dlaczego?} Bo każdy inny wybór oznacza, że \textit{wkładasz do modelu informację,
+której nie masz}. Maksymalna entropia = \textbf{intelektualna uczciwość}
+--- ``wiem tyle i~tyle, niczego więcej nie zakładam''.
+
+\medskip
+\textbf{Wynik:} Jeśli znasz tylko $\mu$ i~$\sigma^2$ $\;\Longrightarrow\;$
+jedyny uczciwy wybór to $\mathcal{N}(\mu, \sigma^2)$.
+\end{keyinsight}
+
+\medskip
+\textit{Historycznie:} Shannon (1948) wprowadził entropię w~teorii informacji
+--- ``ile bitów potrzebuję, żeby zakodować losową zmienną?''.
+Jaynes (1957) odwrócił pytanie: ``znam tylko pewne statystyki --- który rozkład wybrać?''
+--- ten o~największej entropii.
+\end{tcolorbox}
+
+% ---- Dygresja: mnożniki Lagrange'a ----
+
+\begin{tcolorbox}[
+  colback=lejepaRed!8,
+  colframe=lejepaRed!80,
+  fonttitle=\bfseries,
+  title={Dygresja: czym są mnożniki Lagrange'a? Przykład z~ogrodzeniem},
+  breakable,
+]
+
+Zanim napiszemy Lagrangian dla entropii, zobaczmy ideę na \textbf{prostym przykładzie
+z~liczbami}.
+
+\bigskip
+
+\textbf{Problem:} Masz 20~metrów ogrodzenia. Chcesz ogrodzić prostokątny ogródek
+o~\textbf{największym polu}. Jakie wymiary wybrać?
+
+\medskip
+
+Oznaczenia: boki $x$ i~$y$. Chcemy:
+\[
+\text{maksymalizować } f(x, y) = x \cdot y \qquad\text{(pole)}
+\]
+ale z~\textbf{ograniczeniem}:
+\[
+g(x, y) = 2x + 2y = 20 \qquad\text{(obwód = 20~m)}
+\]
+
+\textbf{Dlaczego nie wystarczy zwykła pochodna?}
+
+Gdyby nie było ograniczenia, moglibyśmy po prostu policzyć $\partial f/\partial x = 0$
+i~$\partial f/\partial y = 0$. Ale to dałoby $y = 0$ i~$x = 0$ (minimum!),
+albo $x, y \to \infty$ (brak maximum --- pole rośnie bez końca).
+
+Ograniczenie $2x + 2y = 20$ nie pozwala nam dowolnie zwiększać boków
+--- i~właśnie ono sprawia, że optymalne rozwiązanie istnieje.
+Ale jak je uwzględnić w~rachunku?
+
+\bigskip
+
+\textbf{Trik Lagrange'a:} zamiast rozwiązywać problem ``maksymalizuj $f$ pod warunkiem $g = 20$'',
+\textit{łączymy} $f$ i~$g$ w~jedną funkcję:
+
+\begin{equation}
+\mathcal{L}(x, y, \lambda) = \underbrace{x\,y}_{\text{to chcemy maks.}}
+\;-\; \lambda\,\underbrace{(2x + 2y - 20)}_{\text{ograniczenie} = 0}
+\label{eq:lagrange_fence}
+\end{equation}
+
+$\lambda$ to \textbf{mnożnik Lagrange'a} --- nieznana liczba, którą wyznaczymy razem z~$x$ i~$y$.
+
+\medskip
+
+\textit{Intuicja:} jeśli ograniczenie jest spełnione ($2x + 2y - 20 = 0$),
+to wyraz z~$\lambda$ znika i~$\mathcal{L} = f$. Mnożnik $\lambda$ ``pilnuje'',
+żeby ograniczenie było spełnione --- działa jak kara za jego złamanie.
+
+\bigskip
+
+\textbf{Liczymy.} Przyrównujemy pochodne do zera:
+
+\begin{align}
+\frac{\partial\mathcal{L}}{\partial x} &= y - 2\lambda = 0
+\quad\Rightarrow\quad y = 2\lambda
+\label{eq:fence_dx}\\[4pt]
+\frac{\partial\mathcal{L}}{\partial y} &= x - 2\lambda = 0
+\quad\Rightarrow\quad x = 2\lambda
+\label{eq:fence_dy}\\[4pt]
+\frac{\partial\mathcal{L}}{\partial \lambda} &= -(2x + 2y - 20) = 0
+\quad\Rightarrow\quad 2x + 2y = 20
+\label{eq:fence_dlambda}
+\end{align}
+
+Z~\eqref{eq:fence_dx} i~\eqref{eq:fence_dy}: $x = y = 2\lambda$.
+Wstawiamy do~\eqref{eq:fence_dlambda}: $2(2\lambda) + 2(2\lambda) = 20$, czyli
+$8\lambda = 20$, $\lambda = 2{,}5$.
+
+\[
+\boxed{x = y = 5\text{ m}, \qquad \text{pole} = 25\text{ m}^2}
+\]
+
+\textbf{Kwadrat!} Spośród wszystkich prostokątów o~obwodzie 20~m,
+kwadrat $5 \times 5$ ma największe pole.
+
+\bigskip
+
+\textbf{Wzorzec:}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{lll}
+\toprule
+& \textbf{Ogrodzenie} & \textbf{Nasz problem (entropia)} \\
+\midrule
+Co maksymalizujemy? & Pole $= x \cdot y$ & Entropię $H[p]$ \\
+Ograniczenie 1 & obwód $= 20$ & $\int p\,dz = 1$ \\
+Ograniczenie 2 & --- & $\int z\,p\,dz = \mu$ \\
+Ograniczenie 3 & --- & $\int (z{-}\mu)^2 p\,dz = \sigma^2$ \\
+Ile mnożników $\lambda$? & 1 & 3 ($\lambda_0, \lambda_1, \lambda_2$) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Mechanizm jest identyczny: łączymy to, co chcemy maksymalizować,
+z~ograniczeniami pomnożonymi przez $\lambda$-ki.
+\end{tcolorbox}
+
+\begin{tcolorbox}[
+  colback=lejepaGreen!8,
+  colframe=lejepaGreen!80,
+  fonttitle=\bfseries,
+  title={Krok 2: Maksymalizacja entropii $\Rightarrow$ kształt $\exp(-\alpha(z-\mu)^2)$},
+  breakable,
+]
+Robimy dokładnie to samo co z~ogrodzeniem, ale teraz:
+\begin{itemize}[leftmargin=*]
+\item Zamiast pola prostokąta maksymalizujemy \textbf{entropię} $H[p] = -\int p\ln p\,dz$.
+\item Zamiast jednego ograniczenia (obwód) mamy \textbf{trzy} ograniczenia z~Kroku~1:
+  normalizacja, średnia, wariancja.
+\item Zamiast dwóch niewiadomych ($x, y$) szukamy całej \textbf{funkcji} $p(z)$.
+\end{itemize}
+
+\medskip
+
+Lagrangian --- ``to co maksymalizujemy minus $\lambda \times$ ograniczenia'':
+
+\begin{equation}
+\mathcal{L}[p] = \underbrace{-\int p\ln p\,dz}_{\text{entropia }H[p]}
+\;-\; \lambda_0\!\underbrace{\left(\int p\,dz - 1\right)}_{\text{normalizacja}}
+\;-\; \lambda_1\!\underbrace{\left(\int z\,p\,dz - \mu\right)}_{\text{średnia}}
+\;-\; \lambda_2\!\underbrace{\left(\int (z-\mu)^2 p\,dz - \sigma^2\right)}_{\text{wariancja}}
+\label{eq:lagrangian}
+\end{equation}
+
+Każdy mnożnik $\lambda_i$ ``pilnuje'' swojego ograniczenia --- tak samo jak $\lambda$
+pilnowało obwodu ogrodzenia.
+
+\bigskip
+
+\textbf{Dlaczego ograniczenia mają taką postać?}
+
+Wzorzec jest zawsze ten sam: \textit{to, co powinno być równe czemuś, minus to coś}.
+Jeśli ograniczenie jest spełnione, nawias daje \textbf{zero} --- i~wyraz z~$\lambda$ znika.
+
+Rozpiszmy każdy nawias:
+
+\medskip
+
+\textbf{Ograniczenie 1 (normalizacja):} $\displaystyle\left(\int p\,dz - 1\right)$
+
+Wiemy z~Kroku~0, że $p(z)$ musi być rozkładem prawdopodobieństwa, czyli:
+\[
+\int_{-\infty}^{\infty} p(z)\,dz = 1
+\]
+Przepisujemy to jako ``lewa strona minus prawa strona $= 0$'':
+\[
+\int p\,dz - 1 = 0
+\]
+Jeśli $p(z)$ jest poprawnym rozkładem, cała całka wynosi dokładnie~1,
+więc $1 - 1 = 0$ --- nawias znika i~nie wpływa na Lagrangian.
+Gdyby $p(z)$ ``oszukiwało'' (np.\ $\int p\,dz = 1{,}3$),
+nawias byłby $\neq 0$ i~mnożnik $\lambda_0$ nakładałby ``karę''.
+
+\medskip
+
+\textbf{Ograniczenie 2 (średnia):} $\displaystyle\left(\int z\,p\,dz - \mu\right)$
+
+Chcemy, żeby średnia rozkładu wynosiła $\mu$:
+\[
+\int_{-\infty}^{\infty} z\,p(z)\,dz = \mu
+\]
+Znowu: ``lewa strona minus prawa strona $= 0$'':
+\[
+\int z\,p\,dz - \mu = 0
+\]
+Jeśli rozkład ma średnią dokładnie $\mu$ --- nawias zeruje się.
+
+\medskip
+
+\textbf{Ograniczenie 3 (wariancja):} $\displaystyle\left(\int (z-\mu)^2\,p\,dz - \sigma^2\right)$
+
+Chcemy, żeby wariancja wynosiła $\sigma^2$:
+\[
+\int_{-\infty}^{\infty} (z-\mu)^2\,p(z)\,dz = \sigma^2
+\]
+Czyli:
+\[
+\int (z-\mu)^2\,p\,dz - \sigma^2 = 0
+\]
+Jeśli rozrzut wokół średniej jest dokładnie $\sigma^2$ --- nawias zeruje się.
+
+\medskip
+
+Porównaj z~ogrodzeniem: tam ograniczenie brzmiało $2x + 2y = 20$,
+więc nawias wyglądał $(2x + 2y - 20)$. Mechanizm identyczny.
+
+\begin{keyinsight}[Wzorzec Lagrangianu]
+\[
+\mathcal{L} = \underbrace{(\text{co maksymalizujemy})}_{\text{entropia}}
+\;-\; \sum_i \lambda_i \cdot \underbrace{(\text{ograniczenie}_i - \text{wymagana wartość}_i)}_{= \,0\text{ gdy spełnione}}
+\]
+Gdy wszystkie ograniczenia spełnione, nawiasy zerują się i~$\mathcal{L} = H[p]$.
+Mnożniki $\lambda_i$ ``karzą'' za odchylenia od wymaganych wartości.
+\end{keyinsight}
+
+\bigskip
+
+\textbf{Liczymy pochodną} --- analogicznie do $\partial\mathcal{L}/\partial x = 0$
+z~ogrodzenia, ale teraz pochodna jest \textit{po funkcji} $p(z)$
+(tzw.\ pochodna wariacyjna $\partial\mathcal{L}/\partial p$).
+
+W~Lagrangianie~\eqref{eq:lagrangian} pod całką stoi wyrażenie, które zależy od $p$:
+\[
+\mathcal{L}[p] = \int\!\Big[
+\underbrace{-p\ln p}_{\text{(I)}}
+\;-\; \underbrace{\lambda_0\,p}_{\text{(II)}}
+\;-\; \underbrace{\lambda_1\,z\,p}_{\text{(III)}}
+\;-\; \underbrace{\lambda_2\,(z-\mu)^2\,p}_{\text{(IV)}}
+\Big]\,dz
+\;+\;\text{wyrazy bez }p
+\]
+
+Różniczkujemy każdy wyraz po~$p$, dokładnie tak jak $\partial/\partial x$ w~ogrodzeniu:
+
+\begin{alignat}{3}
+&\text{(I)}\quad  & \frac{\partial}{\partial p}\big[-p\ln p\big] &= -\ln p - 1
+  &\qquad& \text{(reguła iloczynu: } \tfrac{\partial}{\partial p}(p\ln p) = \ln p + 1\text{)}
+  \label{eq:var_I}\\[6pt]
+&\text{(II)}\quad & \frac{\partial}{\partial p}\big[-\lambda_0\,p\big] &= -\lambda_0
+  && \text{(liniowe po }p\text{)}
+  \label{eq:var_II}\\[6pt]
+&\text{(III)}\quad& \frac{\partial}{\partial p}\big[-\lambda_1\,z\,p\big] &= -\lambda_1\,z
+  && \text{($z$ to ``stała'' --- nie zależy od }p\text{)}
+  \label{eq:var_III}\\[6pt]
+&\text{(IV)}\quad & \frac{\partial}{\partial p}\big[-\lambda_2\,(z-\mu)^2\,p\big] &= -\lambda_2\,(z-\mu)^2
+  && \text{($z$ i $\mu$ to ``stałe'')}
+  \label{eq:var_IV}
+\end{alignat}
+
+Przyrównujemy sumę (I)+\,(II)+\,(III)+\,(IV) do zera:
+
+\begin{align}
+\frac{\partial\mathcal{L}}{\partial p} = 0\,:\qquad
+\underbrace{-\ln p - 1}_{\text{(I)}}
+\;\underbrace{-\; \lambda_0}_{\text{(II)}}
+\;\underbrace{-\; \lambda_1 z}_{\text{(III)}}
+\;\underbrace{-\; \lambda_2(z-\mu)^2}_{\text{(IV)}} &= 0
+\label{eq:variation_sum}
+\end{align}
+
+Przenosimy $\ln p$ na prawą stronę:
+\begin{equation}
+\ln p(z) = -1 - \lambda_0 - \lambda_1 z - \lambda_2(z-\mu)^2
+\label{eq:variation}
+\end{equation}
+
+\bigskip
+
+\textbf{Chcemy wyrazić $p(z)$, a~mamy $\ln p(z)$.} Jak ``wyciągnąć'' $p(z)$ z~logarytmu?
+
+Funkcja $e^x$ jest \textbf{odwrotnością} $\ln x$ --- tak samo jak $\sqrt{x}$ jest
+odwrotnością $x^2$. Jeśli nałożysz obie po kolei, wracasz do punktu wyjścia:
+\[
+e^{\ln a} = a \qquad\text{dla każdego } a > 0
+\]
+
+Przykład liczbowy: $\ln 5 \approx 1{,}609$, i~rzeczywiście $e^{1{,}609} \approx 5$.
+Eksponenta ``odwraca'' to, co zrobił logarytm.
+
+\medskip
+
+Stosujemy to do naszego równania~\eqref{eq:variation}. Po lewej stronie mamy $\ln p(z)$,
+więc nakładamy $e^{(\cdot)}$ na \textbf{obie strony}:
+\begin{align}
+\ln p(z) &= -1 - \lambda_0 - \lambda_1 z - \lambda_2(z-\mu)^2
+  && \Big|\; e^{(\cdot)} \text{ obu stron} \nonumber\\[4pt]
+e^{\ln p(z)} &= e^{-1 - \lambda_0 - \lambda_1 z - \lambda_2(z-\mu)^2} \nonumber\\[4pt]
+p(z) &= e^{-1 - \lambda_0 - \lambda_1 z - \lambda_2(z-\mu)^2}
+  && \text{(bo $e^{\ln p} = p$)}
+\label{eq:exp_both_sides}
+\end{align}
+
+Na koniec rozbijamy wykładnik na sumę: $e^{a + b + c} = e^a \cdot e^b \cdot e^c$:
+\begin{equation}
+\boxed{p(z) = \underbrace{e^{-1-\lambda_0}}_{\text{stała}}
+\cdot \underbrace{e^{-\lambda_1 z}}_{\stackrel{\text{znika bo}}{\text{symetria}}}
+\cdot e^{-\lambda_2(z-\mu)^2}}
+\label{eq:maxent_form}
+\end{equation}
+
+Ograniczenie na średnią ($\lambda_1$) jedynie przesuwa rozkład o~$\mu$
+--- po zaabsorbowaniu tego przesunięcia w~$(z-\mu)$ wyraz $e^{-\lambda_1 z}$
+jest zbędny i~$\lambda_1 = 0$.
+
+\bigskip
+
+\textbf{Dlaczego w~wykładniku jest kwadrat $(z-\mu)^2$, a~nie $|z-\mu|$ czy $(z-\mu)^4$?}
+
+Prześledźmy, skąd \textit{mechanicznie} bierze się ten kwadrat --- krok po kroku.
+
+\medskip
+
+\textbf{1. W~Kroku~1 wybraliśmy ograniczenie na wariancję.} Wariancja to:
+\[
+\int (z-\mu)^{\boldsymbol{2}}\;p(z)\,dz = \sigma^2
+\]
+Właśnie tu pojawia się $(z-\mu)^2$ --- w~\textit{ograniczeniu}, nie jeszcze w~wyniku.
+
+\medskip
+
+\textbf{2. To ograniczenie weszło do Lagrangianu} (równanie~\eqref{eq:lagrangian}) jako:
+\[
+-\;\lambda_2\!\left(\int (z-\mu)^{\boldsymbol{2}}\,p\,dz - \sigma^2\right)
+\]
+
+\textbf{3. Policzyliśmy pochodną po $p$} (równanie~\eqref{eq:var_IV}):
+\[
+\frac{\partial}{\partial p}\Big[-\lambda_2\,(z-\mu)^{\boldsymbol{2}}\,p\Big]
+= -\lambda_2\,(z-\mu)^{\boldsymbol{2}}
+\]
+$(z-\mu)^2$ przeszło przez pochodną \textit{nietknięte}, bo nie zależy od~$p$.
+
+\medskip
+
+\textbf{4. Trafiło do równania na $\ln p(z)$} (równanie~\eqref{eq:variation}):
+\[
+\ln p(z) = \ldots - \lambda_2(z-\mu)^{\boldsymbol{2}}
+\]
+
+\textbf{5. Eksponenta przeniosła je do~$p(z)$:}
+\[
+p(z) = \ldots\;\cdot\; e^{-\lambda_2(z-\mu)^{\boldsymbol{2}}}
+\]
+
+\medskip
+
+\textbf{Wniosek:} kwadrat w~wykładniku to \textbf{bezpośrednia konsekwencja} tego,
+że nałożyliśmy ograniczenie z~$(z-\mu)^2$ (wariancją).
+Cokolwiek wpiszesz do ograniczenia --- to samo wyląduje w~wykładniku.
+
+\bigskip
+
+Co by się stało, gdybyśmy wybrali \textit{inne} ograniczenie?
+
+\begin{center}
+\renewcommand{\arraystretch}{1.8}
+\begin{tabular}{lll}
+\toprule
+\textbf{Ograniczenie} & \textbf{Co wchodzi do Lagrangianu} & \textbf{Wynik: $p(z) \propto$} \\
+\midrule
+$\displaystyle\int |z-\mu|\,p\,dz = c$
+  & $-\lambda_2\,|z-\mu|\,p$
+  & $e^{-\lambda_2\,|z-\mu|}$ \quad (Laplace!) \\[4pt]
+$\displaystyle\int (z-\mu)^2\,p\,dz = \sigma^2$
+  & $-\lambda_2\,(z-\mu)^2\,p$
+  & $e^{-\lambda_2\,(z-\mu)^2}$ \quad (\textbf{Gauss!}) \\[4pt]
+$\displaystyle\int (z-\mu)^4\,p\,dz = c$
+  & $-\lambda_2\,(z-\mu)^4\,p$
+  & $e^{-\lambda_2\,(z-\mu)^4}$ \quad (``super-Gauss'') \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Każde ograniczenie ``produkuje'' inny rozkład --- a~my wybraliśmy wariancję
+(drugi moment, $(z-\mu)^2$), bo:
+\begin{itemize}[leftmargin=*]
+\item Wariancja jest \textbf{najczęściej używaną miarą} rozrzutu danych
+  (odchylenie standardowe $\sigma$ ma tę samą jednostkę co dane).
+\item Większość twierdzeń w~statystyce (CLT, regresja, PCA, \ldots) opiera się na wariancji.
+\item Wariancja jest \textbf{gładka} i~łatwa w~rachunkach
+  ($|z-\mu|$ nie ma pochodnej w~$z = \mu$; $(z-\mu)^4$ wymaga znajomości czwartego momentu).
+\end{itemize}
+\end{tcolorbox}
+
+\begin{tcolorbox}[
+  colback=lejepaGreen!8,
+  colframe=lejepaGreen!80,
+  fonttitle=\bfseries,
+  title={Krok 3: Wyznaczenie $\alpha = \frac{1}{2\sigma^2}$ --- skąd dwójka w~mianowniku},
+  breakable,
+]
+Z~Kroku~2 wiemy, że $p(z) \propto e^{-\alpha(z-\mu)^2}$ dla pewnego $\alpha > 0$
+(oznaczyliśmy $\alpha \equiv \lambda_2$).
+Wyznaczamy $\alpha$ z~warunku $\operatorname{Var}[Z] = \sigma^2$.
+
+Bez straty ogólności centrujemy: $\mu = 0$. Potrzebujemy:
+\[
+\sigma^2 = \int_{-\infty}^{\infty} z^2\,\tilde{p}(z)\,dz,
+\qquad \text{gdzie } \tilde{p}(z) = \frac{e^{-\alpha z^2}}{\displaystyle\int_{-\infty}^{\infty} e^{-\alpha t^2}\,dt}
+\]
+
+\textbf{Problem:} musimy obliczyć $\int_{-\infty}^{\infty} z^2\,e^{-\alpha z^2}\,dz$.
+To trudna całka --- $z^2$ razy eksponenta. Ale jest sprytny trik.
+
+\bigskip
+
+\textbf{Trik z~pochodną --- idea.}
+
+Zacznijmy od \textit{prostszej} całki (bez $z^2$):
+\begin{equation}
+I(\alpha) = \int_{-\infty}^{\infty} e^{-\alpha z^2}\,dz
+\label{eq:I_alpha}
+\end{equation}
+
+Popatrzmy, co się stanie, gdy weźmiemy pochodną $I(\alpha)$ po parametrze $\alpha$:
+\begin{align}
+\frac{d}{d\alpha}\,I(\alpha)
+&= \frac{d}{d\alpha}\int_{-\infty}^{\infty} e^{-\alpha z^2}\,dz
+= \int_{-\infty}^{\infty} \frac{\partial}{\partial\alpha}\,e^{-\alpha z^2}\,dz
+\label{eq:diff_under_integral}
+\end{align}
+
+Liczymy pochodną eksponenty po~$\alpha$ (traktujemy $z$ jako stałą!):
+\[
+\frac{\partial}{\partial\alpha}\,e^{-\alpha z^2} = -z^2\,e^{-\alpha z^2}
+\]
+
+Więc:
+\begin{equation}
+\frac{d}{d\alpha}\,I(\alpha) = \int_{-\infty}^{\infty} (-z^2)\,e^{-\alpha z^2}\,dz
+= -\int_{-\infty}^{\infty} z^2\,e^{-\alpha z^2}\,dz
+\label{eq:trick_key}
+\end{equation}
+
+A~to znaczy, że nasza trudna całka to po prostu:
+\begin{equation}
+\boxed{\int_{-\infty}^{\infty} z^2\,e^{-\alpha z^2}\,dz
+= -\frac{d}{d\alpha}\,I(\alpha)}
+\label{eq:trick_result}
+\end{equation}
+
+\textit{Zamiast liczyć trudną całkę z~$z^2$, wystarczy policzyć prostszą całkę $I(\alpha)$
+i~wziąć jej pochodną po~$\alpha$!}
+
+\bigskip
+
+\textbf{Ile wynosi $I(\alpha)$?}
+
+To jest słynna \textbf{całka Gaussowska}:
+\begin{equation}
+I(\alpha) = \int_{-\infty}^{\infty} e^{-\alpha z^2}\,dz = \sqrt{\frac{\pi}{\alpha}}
+\label{eq:gauss_integral_alpha}
+\end{equation}
+
+\textit{Skąd się bierze $\pi$ w~tej formule?} Z~triku z~współrzędnymi biegunowymi ---
+pełne wyprowadzenie jest w~Kroku~4 (następny box). Na razie przyjmijmy ten wynik.
+
+\bigskip
+
+\textbf{Bierzemy pochodną $I(\alpha) = \sqrt{\pi/\alpha}$ po~$\alpha$:}
+
+Przepisujemy: $I(\alpha) = \sqrt{\pi}\cdot\alpha^{-1/2}$. Stosujemy regułę potęgową
+$\frac{d}{d\alpha}\alpha^n = n\,\alpha^{n-1}$:
+\begin{align}
+\frac{d}{d\alpha}\,I(\alpha)
+&= \sqrt{\pi}\cdot\left(-\tfrac{1}{2}\right)\cdot\alpha^{-3/2}
+= -\frac{\sqrt{\pi}}{2\,\alpha^{3/2}}
+= -\frac{1}{2}\sqrt{\frac{\pi}{\alpha^3}}
+\label{eq:deriv_I}
+\end{align}
+
+Wstawiamy do~\eqref{eq:trick_result}:
+\begin{equation}
+\int_{-\infty}^{\infty} z^2\,e^{-\alpha z^2}\,dz
+= -\!\left(-\frac{1}{2}\sqrt{\frac{\pi}{\alpha^3}}\right)
+= \frac{1}{2}\sqrt{\frac{\pi}{\alpha^3}}
+\label{eq:deriv_trick}
+\end{equation}
+
+\bigskip
+
+\textbf{Wyznaczamy $\alpha$.}
+
+Wariancja to stosunek dwóch całek (licznik / mianownik):
+\[
+\sigma^2
+= \frac{\int z^2\,e^{-\alpha z^2}\,dz}{\int e^{-\alpha z^2}\,dz}
+= \frac{\tfrac{1}{2}\sqrt{\pi/\alpha^3}}{\sqrt{\pi/\alpha}}
+\]
+
+Upraszczamy --- $\sqrt{\pi}$ skraca się:
+\[
+\sigma^2
+= \frac{\tfrac{1}{2}\,\alpha^{-3/2}}{\alpha^{-1/2}}
+= \frac{1}{2}\cdot\alpha^{-3/2}\cdot\alpha^{1/2}
+= \frac{1}{2}\cdot\alpha^{-1}
+= \frac{1}{2\alpha}
+\]
+
+\[
+\boxed{\alpha = \frac{1}{2\sigma^2}}
+\]
+
+\textit{Stąd dwójka w~mianowniku!}
+Gdybyśmy napisali $e^{-(z-\mu)^2/\sigma^2}$ (bez dwójki), parametr $\sigma^2$ we wzorze
+miałby wartość $\sigma^2/2$, nie $\sigma^2$ --- nie odpowiadałby rzeczywistej wariancji.
+\end{tcolorbox}
+
+\begin{tcolorbox}[
+  colback=lejepaGreen!8,
+  colframe=lejepaGreen!80,
+  fonttitle=\bfseries,
+  title={Krok 4: Stała normalizacyjna $\frac{1}{\sqrt{2\pi\sigma^2}}$ --- skąd $\pi$?},
+  breakable,
+]
+Potrzebujemy $\int_{-\infty}^{\infty} p(z)\,dz = 1$, czyli musimy obliczyć:
+\begin{equation}
+I = \int_{-\infty}^{\infty} e^{-z^2/(2\sigma^2)}\,dz
+\label{eq:gauss_integral}
+\end{equation}
+
+\textbf{Słynny trik z~współrzędnymi biegunowymi.}
+Rozpatrzmy $I^2$:
+\begin{align}
+I^2 &= \left(\int_{-\infty}^{\infty} e^{-x^2/(2\sigma^2)}\,dx\right)
+       \left(\int_{-\infty}^{\infty} e^{-y^2/(2\sigma^2)}\,dy\right)
+= \iint_{\mathbb{R}^2} e^{-(x^2+y^2)/(2\sigma^2)}\,dx\,dy
+\label{eq:I_squared}
+\end{align}
+
+Przechodzimy do współrzędnych biegunowych: $x = r\cos\theta$, $y = r\sin\theta$,
+$dx\,dy = r\,dr\,d\theta$:
+\begin{align}
+I^2 &= \int_0^{2\pi}\!\int_0^{\infty} e^{-r^2/(2\sigma^2)}\,r\,dr\,d\theta
+= 2\pi \int_0^{\infty} r\,e^{-r^2/(2\sigma^2)}\,dr
+\label{eq:polar}
+\end{align}
+
+Podstawienie $u = r^2/(2\sigma^2)$, $du = r\,dr/\sigma^2$:
+\[
+I^2 = 2\pi\sigma^2 \int_0^{\infty} e^{-u}\,du = 2\pi\sigma^2
+\quad\Longrightarrow\quad
+I = \sqrt{2\pi\sigma^2}
+\]
+
+Stąd stała normalizacyjna:
+\begin{equation}
+\boxed{C = \frac{1}{I} = \frac{1}{\sqrt{2\pi\sigma^2}}}
+\label{eq:norm_const}
+\end{equation}
+
+\textit{Skąd $\pi$?} Z~przejścia do współrzędnych biegunowych:
+całka po kącie $\int_0^{2\pi}d\theta = 2\pi$
+--- stąd $\pi$ ``wchodzi'' do wzoru na Gaussa.
+\end{tcolorbox}
+
+\begin{tcolorbox}[
+  colback=lejepaBlue!8,
+  colframe=lejepaBlue!80,
+  fonttitle=\bfseries,
+  title={Krok 5: Złożenie --- finalny wzór Gaussa 1D},
+  breakable,
+]
+Składamy wyniki Kroków 2--4:
+\begin{itemize}[leftmargin=*]
+\item \textbf{Krok 2} (maksymalna entropia): $p(z) \propto e^{-\alpha(z-\mu)^2}$
+\item \textbf{Krok 3} (wariancja $= \sigma^2$): $\alpha = \dfrac{1}{2\sigma^2}$
+\item \textbf{Krok 4} (normalizacja): stała $= \dfrac{1}{\sqrt{2\pi\sigma^2}}$
+\end{itemize}
+
+\medskip
+Razem:
+\begin{equation}
+\boxed{
+p(z) = \frac{1}{\sqrt{2\pi\sigma^2}}\;\exp\!\left(-\frac{(z-\mu)^2}{2\sigma^2}\right)
+}
+\tag{1D$'$}
+\end{equation}
+
+\textbf{Każdy element wzoru ma konkretne źródło:}
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{ll}
+$(z-\mu)^2$ & $\leftarrow$ ograniczenie na wariancję (drugi moment) \\
+$2\sigma^2$ w~mianowniku & $\leftarrow$ wymóg $\operatorname{Var}[Z] = \sigma^2$ \\
+$\exp(\cdot)$ & $\leftarrow$ maksymalizacja entropii \\
+$1/\sqrt{2\pi\sigma^2}$ & $\leftarrow$ normalizacja (całka Gaussowska)
+\end{tabular}
+\end{center}
+\end{tcolorbox}
+
+\bigskip
+
+\textbf{Podsumowanie: kawałki wzoru}
 
 \begin{center}
 \renewcommand{\arraystretch}{1.8}
