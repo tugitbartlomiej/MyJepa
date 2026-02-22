@@ -2588,7 +2588,11 @@ Histogram wymaga \textbf{sortowania} danych ($O(N \log N)$) i~nie ma gładkiego 
 (jest ``schodkowy''). CF jest \textbf{gładką} funkcją parametrów sieci ---
 każdy $e^{itu_j}$ jest różniczkowalny po~$u_j$, a~$u_j = \mathbf{a}^\top f_\theta(\mathbf{x}_j)$
 jest różniczkowalny po wagach $\theta$.
-Dlatego gradient EP po~$\theta$ istnieje i~jest ograniczony --- idealne do SGD.
+Dlatego gradient EP po~$\theta$ istnieje i~jest ograniczony --- idealne do SGD
+(Stochastic Gradient Descent --- stochastyczny spadek gradientowy,
+podstawowy algorytm trenowania sieci neuronowych,
+który w~każdym kroku przesuwa wagi $\theta$ o~mały krok w~kierunku
+przeciwnym do gradientu lossu).
 \end{keyinsight}
 
 \begin{figure}[H]
@@ -2612,9 +2616,282 @@ T\!\left(\{\mathbf{a}^\top f_\theta(\mathbf{x}_n)\}_{n=1}^N\right)
 }
 \label{eq:sigreg}
 \end{equation}
-gdzie $\mathbb{A} = \{\mathbf{a}_1, \ldots, \mathbf{a}_M\}$ to losowe kierunki jednostkowe,
-$T$ to test Eppsa-Pulleya, $M \approx 1024$.
+gdzie:
+\begin{itemize}[leftmargin=2em, itemsep=2pt]
+  \item $\mathbf{x}_n$ --- $n$-ty \textbf{obraz} (surowe piksele) z~batcha,
+  \item $f_\theta(\mathbf{x}_n) \in \mathbb{R}^d$ --- \textbf{embedding} tego obrazu
+        (wektor wyprodukowany przez sieć neuronową $f_\theta$: ViT + projektor),
+  \item $N$ --- rozmiar batcha (liczba obrazów); \textbf{wszystkie} $N$ embeddingów
+        uczestniczy w~każdym rzucie,
+  \item $\mathbb{A} = \{\mathbf{a}_1, \ldots, \mathbf{a}_M\}$ --- zbiór $M$ \textbf{losowych}
+        kierunków jednostkowych ($\|\mathbf{a}_m\| = 1$); typowo $M \approx 1024$,
+  \item $T$ --- test Eppsa-Pulleya (sprawdza gaussowość 1D).
+\end{itemize}
 \end{definition}
+
+\subsubsection*{Jak czytać ten wzór krok po kroku}
+
+Wzór~(\ref{eq:sigreg}) wygląda groźnie, ale składa się z~zaledwie \textbf{trzech warstw}.
+Czytamy go \textit{od wewnątrz na zewnątrz} --- jak cebulę:
+
+\medskip
+
+\textbf{Warstwa 1 (najgłębsza): Rzutowanie --- co siedzi w~argumencie $T$}
+
+\[
+\mathbf{a}^\top f_\theta(\mathbf{x}_n)
+\]
+
+To jest \textbf{iloczyn skalarny} wektora kierunku $\mathbf{a}$ z~embeddingiem $f_\theta(\mathbf{x}_n)$.
+
+\begin{itemize}[leftmargin=2em]
+  \item $f_\theta(\mathbf{x}_n)$ --- sieć neuronowa (ViT) z~wagami $\theta$
+        bierze obraz $\mathbf{x}_n$ i~wypluwa wektor w~$\mathbb{R}^d$
+        (np.~$d = 128$ wymiarów).
+  \item $\mathbf{a} \in \mathbb{R}^d$ --- losowy kierunek jednostkowy ($\|\mathbf{a}\| = 1$).
+        Można myśleć o~nim jak o~\textbf{ekranie}, na który rzucamy cień wektora.
+  \item $\mathbf{a}^\top f_\theta(\mathbf{x}_n) \in \mathbb{R}$ --- wynik to \textbf{jedna liczba}:
+        długość cienia embeddingu na kierunek $\mathbf{a}$.
+\end{itemize}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.9, >=stealth]
+  % Kierunek a
+  \draw[->, thick, blue!70!black] (0,0) -- (4,0) node[right] {$\mathbf{a}$};
+  % Embedding
+  \draw[->, thick, red!70!black] (0,0) -- (3,2.2) node[above right] {$f_\theta(\mathbf{x}_n)$};
+  % Rzut
+  \draw[dashed, gray] (3,2.2) -- (3,0);
+  \fill[blue!50] (3,0) circle (3pt);
+  \node[below] at (3,-0.15) {$\mathbf{a}^\top f_\theta(\mathbf{x}_n)$};
+  % Kąt
+  \draw[gray, ->] (1.2,0) arc (0:36:1.2);
+  \node[gray] at (1.6,0.45) {$\alpha$};
+\end{tikzpicture}
+\end{center}
+
+Mamy $N$ obrazów, więc dostajemy $N$ takich liczb --- \textbf{jedną na obraz}:
+\[
+\{\mathbf{a}^\top f_\theta(\mathbf{x}_1),\;
+  \mathbf{a}^\top f_\theta(\mathbf{x}_2),\;
+  \ldots,\;
+  \mathbf{a}^\top f_\theta(\mathbf{x}_N)\}
+\]
+To jest \textbf{zbiór $N$ rzutów} --- jednowymiarowa ``migawka'' tego,
+jak embeddingi rozkładają się wzdłuż kierunku $\mathbf{a}$.
+
+\medskip
+
+\textbf{Warstwa 2 (środkowa): Test Eppsa-Pulleya $T$}
+
+\[
+T\!\left(\{\mathbf{a}^\top f_\theta(\mathbf{x}_n)\}_{n=1}^N\right)
+\]
+
+Funkcja $T$ bierze te $N$ liczb i~odpowiada na pytanie:
+
+\begin{keyinsight}[Pytanie testu $T$]
+``Czy te $N$ liczb wyglądają jak próbka z~rozkładu $\mathcal{N}(0,1)$?''
+
+\medskip
+$T$ zwraca \textbf{jedną liczbę} $\geq 0$:
+\begin{itemize}[leftmargin=2em]
+  \item $T \approx 0$ --- tak, to wygląda jak standardowy Gauss. \textbf{Dobrze!}
+  \item $T \gg 0$ --- nie, coś jest nie tak (za mała wariancja, przesunięta średnia,
+        za grube ogony\ldots). \textbf{Kara!}
+\end{itemize}
+\end{keyinsight}
+
+Jak dokładnie $T$ to robi? Porównuje \textbf{empiryczną CF} danych z~\textbf{teoretyczną CF} Gaussa
+--- dokładnie tak, jak wyprowadziliśmy w~Elementach 7--12.
+
+\medskip
+
+\textbf{Warstwa 3 (zewnętrzna): Uśrednienie po kierunkach}
+
+\[
+\frac{1}{|\mathbb{A}|} \sum_{\mathbf{a} \in \mathbb{A}} T(\cdots)
+\]
+
+Jeden kierunek $\mathbf{a}$ to \textbf{jeden rzut} --- sprawdzamy gaussowość
+tylko w~jednym wymiarze. Ale izotropowy Gauss musi wyglądać gaussowsko
+\textit{w~każdym kierunku} (twierdzenie Craméra-Wolda z~Elementu~3).
+
+Dlatego losujemy $M$ kierunków $\mathbb{A} = \{\mathbf{a}_1, \ldots, \mathbf{a}_M\}$
+i~\textbf{uśredniamy} wyniki testów:
+\begin{itemize}[leftmargin=2em]
+  \item Każdy kierunek daje swoją ``karę'' $T_m$.
+  \item Średnia z~$M$ kar = ostateczny \textbf{SIGReg loss}.
+  \item Typowo $M \approx 1024$ --- wystarczająco dużo, by pokryć
+        przestrzeń $\mathbb{R}^{128}$.
+\end{itemize}
+
+\begin{tcolorbox}[colback=green!5, colframe=green!60!black, title={\textbf{Podsumowanie: SIGReg w~trzech zdaniach}}]
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Rzutuj}: dla każdego losowego kierunku $\mathbf{a}$,
+        zrzutuj wszystkie embeddingi na prostą $\to$ dostań $N$ liczb.
+  \item \textbf{Testuj}: sprawdź testem Eppsa-Pulleya, czy te $N$ liczb
+        wyglądają jak $\mathcal{N}(0,1)$.
+  \item \textbf{Uśrednij}: powtórz dla $M$ kierunków i~weź średnią kar.
+\end{enumerate}
+
+\medskip
+\textbf{Efekt}: sieć jest karana, gdy embeddingi \textit{nie} tworzą
+izotropowego Gaussa w~$\mathbb{R}^d$.
+Im dalej od $\mathcal{N}(\mathbf{0}, \mathbf{I})$,
+tym większa kara $\Rightarrow$ tym mocniejszy gradient popychający wagi $\theta$
+w~stronę gaussowości.
+\end{tcolorbox}
+
+\subsubsection*{Konkretny przykład liczbowy}
+
+Załóżmy, że mamy $N = 4$ obrazy, $d = 3$ wymiary (zamiast 128, dla prostoty),
+i~$M = 2$ losowe kierunki.
+
+\medskip
+\textbf{Krok 1.} Sieć produkuje embeddingi:
+\[
+f_\theta(\mathbf{x}_1) = \begin{pmatrix} 0.5 \\ -1.2 \\ 0.8 \end{pmatrix}, \quad
+f_\theta(\mathbf{x}_2) = \begin{pmatrix} -0.3 \\ 0.7 \\ 1.1 \end{pmatrix}, \quad
+f_\theta(\mathbf{x}_3) = \begin{pmatrix} 1.4 \\ 0.1 \\ -0.6 \end{pmatrix}, \quad
+f_\theta(\mathbf{x}_4) = \begin{pmatrix} -0.9 \\ -0.5 \\ 0.2 \end{pmatrix}
+\]
+
+\textbf{Krok 2.} Losujemy kierunek $\mathbf{a}_1 = \frac{1}{\sqrt{3}}(1,1,1)^\top$
+i~rzutujemy (iloczyn skalarny):
+\[
+\mathbf{a}_1^\top f_\theta(\mathbf{x}_n):\quad
+\frac{0.5 - 1.2 + 0.8}{\sqrt{3}} \approx 0.06,\quad
+\frac{-0.3 + 0.7 + 1.1}{\sqrt{3}} \approx 0.87,\quad
+\frac{1.4 + 0.1 - 0.6}{\sqrt{3}} \approx 0.52,\quad
+\frac{-0.9 - 0.5 + 0.2}{\sqrt{3}} \approx -0.69
+\]
+
+Dostajemy 4 liczby: $\{0.06,\; 0.87,\; 0.52,\; -0.69\}$.
+Test Eppsa-Pulleya sprawdza: czy to wygląda jak $\mathcal{N}(0,1)$?
+Powiedzmy, że $T_1 = 0.15$ (niewielka kara).
+
+\medskip
+\textbf{Krok 3.} Losujemy drugi kierunek $\mathbf{a}_2$, powtarzamy rzutowanie,
+dostajemy inny zestaw 4~liczb, test daje $T_2 = 0.42$ (większa kara ---
+w~tym kierunku rozkład bardziej odbiega od Gaussa).
+
+\medskip
+\textbf{Krok 4.} Uśredniamy:
+\[
+\mathrm{SIGReg} = \frac{T_1 + T_2}{2} = \frac{0.15 + 0.42}{2} = 0.285
+\]
+
+Ta liczba wchodzi do łącznego lossu i~gradient ją zmniejsza
+w~kolejnych krokach treningu.
+
+\subsubsection*{Co jest losowe, a~co nie --- kluczowe rozróżnienie}
+
+We wzorze SIGReg pojawiają się dwa zbiory indeksowane literami:
+$\mathbb{A}$ (kierunki) i~$\{f_\theta(\mathbf{x}_n)\}$ (embeddingi).
+Łatwo je pomylić, dlatego wyjaśnijmy to raz na zawsze:
+
+\begin{warningbox}[Uwaga: co jest losowe?]
+\textbf{Losowe} są \textbf{kierunki} $\mathbf{a} \in \mathbb{A}$
+--- losujemy $M$ wektorów jednostkowych na sferze $S^{d-1}$.
+
+\medskip
+\textbf{NIE} są losowe embeddingi $f_\theta(\mathbf{x}_n)$
+--- to deterministyczne wyjścia sieci neuronowej.
+Mamy ich dokładnie $N$ (rozmiar batcha) i~\textbf{wszystkie}
+biorą udział w~każdym rzucie.
+\end{warningbox}
+
+Innymi słowy, dla \textbf{każdego} losowego kierunku $\mathbf{a}_m$
+rzutujemy na niego \textbf{wszystkie $N$ embeddingów}:
+
+\[
+\underbrace{\mathbf{a}_m}_{\text{1 losowy kierunek}}
+\;\longrightarrow\;
+\underbrace{
+  \mathbf{a}_m^\top f_\theta(\mathbf{x}_1),\;\;
+  \mathbf{a}_m^\top f_\theta(\mathbf{x}_2),\;\;
+  \ldots,\;\;
+  \mathbf{a}_m^\top f_\theta(\mathbf{x}_N)
+}_{\text{$N$ rzutów --- \textbf{po jednym na każdy embedding w~batchu}}}
+\]
+
+\begin{center}
+\begin{tikzpicture}[scale=0.85, >=stealth]
+  % Przestrzeń latentna
+  \node[anchor=south] at (0,3.5) {\textbf{Przestrzeń latentna} $\mathbb{R}^d$};
+
+  % Embeddingi - chmura punktów
+  \fill[red!70!black] (-0.3, 2.5) circle (3pt);
+  \fill[red!70!black] (0.8, 1.8) circle (3pt);
+  \fill[red!70!black] (-1.2, 1.2) circle (3pt);
+  \fill[red!70!black] (0.5, 3.0) circle (3pt);
+  \fill[red!70!black] (1.5, 2.3) circle (3pt);
+  \fill[red!70!black] (-0.7, 0.7) circle (3pt);
+  \fill[red!70!black] (1.1, 0.5) circle (3pt);
+  \fill[red!70!black] (-0.5, 1.8) circle (3pt);
+
+  \node[red!70!black, anchor=west] at (2.0, 2.5) {$N$ embeddingów};
+  \node[red!70!black, anchor=west] at (2.0, 2.0) {(cały batch)};
+
+  % Kierunek a1
+  \draw[->, very thick, blue!70!black] (0, 0) -- (4.5, 0)
+    node[right] {$\mathbf{a}_1$ (losowy)};
+
+  % Rzuty na a1
+  \foreach \x in {-0.3, 0.8, -1.2, 0.5, 1.5, -0.7, 1.1, -0.5} {
+    \draw[dashed, gray, thin] (\x, {0.5 + abs(\x)*0.6}) -- (\x, -0.15);
+    \fill[blue!60] (\x, -0.15) circle (2.5pt);
+  }
+
+  \node[blue!70!black, anchor=north] at (0.5, -0.5)
+    {\small $N$ rzutów $\to$ test Eppsa-Pulleya};
+
+  % Kierunek a2
+  \draw[->, very thick, green!50!black] (0, 0) -- (1.5, -3.5)
+    node[right] {$\mathbf{a}_2$ (losowy)};
+
+  % Etykieta
+  \node[anchor=west] at (2.5, -2.5) {\small znów \textbf{wszystkie} $N$};
+  \node[anchor=west] at (2.5, -3.0) {\small embeddingów rzutujemy};
+\end{tikzpicture}
+\end{center}
+
+Podsumowując schemat działania:
+
+\begin{tcolorbox}[colback=violet!5, colframe=violet!70!black,
+  title={\textbf{SIGReg: co jest stałe, co się zmienia}}]
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{lcp{7.5cm}}
+\toprule
+& \textbf{Ile?} & \textbf{Rola} \\
+\midrule
+Embeddingi $f_\theta(\mathbf{x}_n)$ &
+  $N$ (rozmiar batcha, np.\ 256) &
+  \textbf{Stałe} w~danym kroku treningu ---
+  sieć je wyprodukowała i~\textbf{wszystkie} uczestniczą
+  w~każdym rzucie. \\
+Kierunki $\mathbf{a}_m$ &
+  $M$ (np.\ 1024) &
+  \textbf{Losowe} --- wylosowane raz na krok treningu.
+  Każdy definiuje inny ``ekran'',
+  na który rzucamy \textit{całą chmurę}. \\
+Rzuty $\mathbf{a}_m^\top f_\theta(\mathbf{x}_n)$ &
+  $N \times M$ &
+  Dla każdej pary (kierunek, embedding)
+  dostajemy jedną liczbę.
+  Ale test EP działa na \textbf{kolumnach}:
+  bierze $N$ rzutów jednego kierunku. \\
+\bottomrule
+\end{tabular}
+\end{tcolorbox}
+
+Dlaczego to jest ważne? Bo gdybyśmy losowali embeddingi (brali tylko podzbiór batcha),
+tracilibyśmy informację. A~gdybyśmy sprawdzali tylko jeden kierunek,
+moglibyśmy przegapić anizotropię w~innych wymiarach.
+SIGReg \textbf{losuje kierunki} (bo jest ich nieskończenie wiele na sferze,
+więc musimy próbkować), ale \textbf{zawsze używa wszystkich embeddingów}
+(bo mamy ich skończenie $N$ i~każdy niesie informację o~rozkładzie).
 
 \subsection{Dlaczego Epps-Pulley a nie inne testy?}
 
@@ -2634,6 +2911,10 @@ Epps-Pulley ma:
 \begin{itemize}
   \item Ograniczony gradient: $|\partial \text{EP}/\partial z_i| \leq 4\sigma^2/N$ (Tw.~4 w artykule),
   \item Liniową złożoność: $O(N)$ pamięci i czasu,
-  \item Naturalną kompatybilność z DDP: ECF to średnia $\Rightarrow$ \texttt{all\_reduce}.
+  \item Naturalną kompatybilność z~DDP (Distributed Data Parallel ---
+        trening rozproszony na wielu GPU jednocześnie;
+        każdy GPU liczy gradienty na swoim kawałku batcha,
+        potem wyniki uśrednia się operacją \texttt{all\_reduce}).
+        ECF to średnia $\Rightarrow$ idealnie pasuje do \texttt{all\_reduce}.
 \end{itemize}
 
