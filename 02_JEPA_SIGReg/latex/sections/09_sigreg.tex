@@ -672,8 +672,8 @@ Z~batcha $N$ embeddingów dostajemy $N$ takich liczb: $u_1, u_2, \ldots, u_N$.
 Zanim przejdziemy do wzorów SIGReg, wyjaśnijmy dokładnie, czym jest CF
 i~skąd się bierze --- od samych podstaw.
 
-%% ----- Element 0: Motywacja --- po co nam CF? -----
-\subsubsection{Element 0: Po co nam funkcja charakterystyczna?}
+%% ----- Element 1: Motywacja --- po co nam CF? -----
+\subsubsection{Element 1: Po co nam funkcja charakterystyczna?}
 
 Mamy $N$ liczb $u_1, \ldots, u_N$ (rzuty embeddingów).
 Chcemy odpowiedzieć na pytanie: \textit{``Czy te liczby pochodzą z~rozkładu $\mathcal{N}(0,1)$?''}
@@ -689,8 +689,8 @@ Potrzebujemy narzędzia, które:
 \end{enumerate}
 Takim narzędziem jest właśnie \textbf{funkcja charakterystyczna}.
 
-%% ----- Element 0.5: Liczby zespolone --- minimum potrzebne -----
-\subsubsection{Element 0.5: Minimum o~liczbach zespolonych}
+%% ----- Element 2: Liczby zespolone --- minimum potrzebne -----
+\subsubsection{Element 2: Minimum o~liczbach zespolonych}
 
 Funkcja charakterystyczna używa liczb zespolonych, więc przypomnijmy
 absolutne minimum:
@@ -730,8 +730,8 @@ $|a + bi| = \sqrt{a^2 + b^2}$
 
 \end{tcolorbox}
 
-%% ----- Element 0.6: Wzór Eulera -----
-\subsubsection{Element 0.6: Wzór Eulera --- klucz do CF}
+%% ----- Element 3: Wzór Eulera -----
+\subsubsection{Element 3: Wzór Eulera --- klucz do CF}
 
 Najważniejszy wzór, na którym opiera się cała teoria CF:
 
@@ -976,8 +976,8 @@ $2\pi \approx 6{,}28$ & $1$ & $0$ & $1$ (pełen obrót) \\
 \end{tabular}
 \end{center}
 
-%% ----- Element 0.7: Od Eulera do CF -----
-\subsubsection{Element 0.7: Od wzoru Eulera do funkcji charakterystycznej}
+%% ----- Element 4: Od Eulera do CF -----
+\subsubsection{Element 4: Od wzoru Eulera do funkcji charakterystycznej}
 
 Teraz zastosujmy wzór Eulera. Weźmy zmienną losową $X$
 (np.\ nasze rzuty $u$) i~wpiszmy $\theta = tx$:
@@ -1073,15 +1073,109 @@ To właśnie mierzy funkcja charakterystyczna!
 \end{tcolorbox}
 
 %% =============================================================
-%% Element 0.75: Momenty rozkładu --- teoria od podstaw
+%% ----- Element 5: Momenty rozkładu --- teoria od podstaw -----
 %% =============================================================
-\subsubsection{Element 0.75: Momenty rozkładu --- czym są i~do czego służą}
+\subsubsection{Element 5: Momenty rozkładu --- czym są i~do czego służą}
 
 Zanim wyjaśnimy, dlaczego w~SIGReg używamy akurat $e^{itX}$,
 musimy poznać prostsze narzędzie, z~którego CF wyrasta --- \textbf{momenty rozkładu}.
 
+\begin{tcolorbox}[colback=violet!5, colframe=violet!70!black, breakable,
+  title={Czym są ``momenty'' w~matematyce?}]
+
+Słowo \textbf{moment} w~matematyce pochodzi z~\textbf{fizyki} ---
+z~mechaniki Archimedesa i~dźwigni.
+
+\textbf{Fizyczny moment siły} to siła $\times$ ramię (odległość od punktu obrotu):
+\[
+\text{moment} = F \times d
+\]
+Jeśli masz belkę z~ciężarkami, to moment mówi ci,
+\textit{jak mocno} ciężarki ``ciągną'' belkę, żeby się obróciła.
+Im dalej ciężarek od środka ($d$ duże) i~im cięższy ($F$ duże),
+tym większy moment.
+
+\medskip
+\textbf{W~matematyce i~statystyce} przenosimy tę ideę na rozkłady prawdopodobieństwa.
+Zamiast ciężarków na belce mamy \textit{punkty danych na osi liczbowej},
+a~zamiast masy --- \textit{prawdopodobieństwo}:
+
+\begin{center}
+\begin{tikzpicture}[scale=0.85]
+  % belka
+  \draw[thick] (-5,0) -- (5.5,0);
+  % punkt obrotu (trójkąt)
+  \draw[thick, fill=gray!30] (-0.2,-0.45) -- (0.2,-0.45) -- (0,-0.08) -- cycle;
+  \node[below] at (0,-0.55) {\small punkt obrotu ($\mu$)};
+  % ciężarki = dane
+  \fill[lejepaBlue] (-4,0) circle (3.5pt);
+  \node[above] at (-4, 0.3) {$x_1$};
+  \fill[lejepaBlue] (-1.5,0) circle (3pt);
+  \node[above] at (-1.5, 0.3) {$x_2$};
+  \fill[lejepaBlue] (2.5,0) circle (4pt);
+  \node[above] at (2.5, 0.3) {$x_3$};
+  \fill[lejepaBlue] (4.5,0) circle (3.5pt);
+  \node[above] at (4.5, 0.3) {$x_4$};
+  % odległość x1 - mu (na lewo od mu)
+  \draw[<->, lejepaRed, thick] (-4,-1.2) -- (0,-1.2);
+  \node[lejepaRed, below] at (-2,-1.2) {\small$x_1 - \mu$ (ujemne)};
+  % odległość x4 - mu (na prawo od mu)
+  \draw[<->, lejepaRed, thick] (0,-1.2) -- (4.5,-1.2);
+  \node[lejepaRed, below] at (2.25,-1.2) {\small$x_4 - \mu$ (dodatnie)};
+  % pionowe linie pomocnicze
+  \draw[gray, thin, dashed] (0,0) -- (0,-1.2);
+  \draw[gray, thin, dashed] (-4,0) -- (-4,-1.2);
+  \draw[gray, thin, dashed] (4.5,0) -- (4.5,-1.2);
+\end{tikzpicture}
+\end{center}
+
+\textbf{Matematyczny moment $n$-tego rzędu} to ``siła'',
+z~jaką dane ciągną na $n$-tą potęgę odległości od środka:
+\[
+\underbrace{\mathbb{E}[(X - \mu)^n]}_{\text{$n$-ty moment centralny}}
+= \text{``średnia wartość } (x - \mu)^n \text{ po wszystkich danych''}
+\]
+
+Im wyższy rząd $n$, tym \textit{subtelniejszą} cechę kształtu rozkładu opisuje moment
+--- dokładnie tak, jak w~fizyce momenty wyższych rzędów opisują coraz subtelniejsze
+aspekty rozkładu masy.
+
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=yellow!5, colframe=yellow!70!black, breakable,
+  title={Gdzie używa się momentów?}]
+
+Momenty to \textbf{fundamentalne} pojęcie --- pojawiają się wszędzie:
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Statystyka:} Średnia i~wariancja (1.\ i~2.\ moment) to podstawowe
+        miary opisujące dane. Każdy kurs statystyki zaczyna od nich.
+  \item \textbf{Teoria prawdopodobieństwa:} Momenty definiują rozkłady.
+        Rozkład Gaussa jest jedynym rozkładem, którego \textit{wszystkie} momenty
+        wyższe niż 2.\ mają prostą formę.
+  \item \textbf{Fizyka:} Moment bezwładności ($\mathbb{E}[r^2]$) ---
+        jak trudno obrócić obiekt. Moment dipolowy --- rozkład ładunków.
+  \item \textbf{Przetwarzanie obrazów:} Momenty Hu --- niezmienniki
+        opisujące kształt obiektów na obrazie (obrót, skala).
+  \item \textbf{Machine learning:} Adam optimizer śledzi 1.\ moment (średnią)
+        i~2.\ moment (wariancję) gradientów --- to dlatego nazywa się
+        \textit{Adaptive \textbf{Moment} Estimation}!
+  \item \textbf{Finanse:} Skośność (3.\ moment) mierzy ryzyko ekstremalnych strat;
+        kurtoza (4.\ moment) mierzy ``grubość ogonów'' rozkładu stóp zwrotu.
+\end{itemize}
+\end{tcolorbox}
+
+\textbf{Podsumowując:} Moment $n$-tego rzędu to po prostu
+$\mathbb{E}[X^n]$ (moment zwykły) lub $\mathbb{E}[(X-\mu)^n]$ (moment centralny).
+To \textit{jedna liczba}, która opisuje pewną cechę kształtu rozkładu.
+Im więcej momentów znamy, tym lepiej ``widzimy'' rozkład ---
+ale jak zobaczymy za chwilę, nawet nieskończenie wiele momentów
+nie zawsze wystarcza, żeby odtworzyć rozkład jednoznacznie.
+
+Zobaczmy teraz konkretnie, co mierzą pierwsze cztery momenty:
+
 \begin{tcolorbox}[colback=gray!5, colframe=gray!60, breakable,
-  title={Co to jest moment rozkładu? --- od kuchni}]
+  title={Momenty od kuchni --- na przykładzie}]
 
 \textbf{Wyobraź sobie:} Masz zbiór $N$ liczb, np.\ wyniki egzaminu
 100~studentów (w~procentach):
@@ -1091,6 +1185,46 @@ x_1 = 45, \quad x_2 = 72, \quad x_3 = 68, \quad \ldots, \quad x_{100} = 81
 
 Pytanie: jak \textbf{opisać} ten zbiór jedną lub kilkoma liczbami?
 
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=blue!5, colframe=blue!60!black, breakable,
+  title={Co oznacza symbol $\mathbb{E}$?}]
+
+Symbol $\mathbb{E}$ (czytamy: ``E'' lub ``wartość oczekiwana'') to standardowy
+zapis w~statystyce i~teorii prawdopodobieństwa na \textbf{średnią}.
+
+\[
+\mathbb{E}[X] \;=\; \text{``średnia wartość zmiennej losowej } X\text{''}
+\]
+
+\textbf{Skąd ta litera?} Od angielskiego \textit{\textbf{E}xpected value}
+(wartość oczekiwana). Podwójne kreski ($\mathbb{E}$, tzw.\ \textit{blackboard bold})
+to konwencja --- odróżnia symbol matematyczny od zwykłej litery~$E$.
+
+\textbf{Dwa przypadki:}
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Dane dyskretne} (skończona lista liczb $x_1, \ldots, x_N$):
+    \[
+    \mathbb{E}[X] = \frac{1}{N}\sum_{j=1}^{N} x_j
+    = \frac{x_1 + x_2 + \cdots + x_N}{N}
+    \qquad\text{(zwykła średnia arytmetyczna)}
+    \]
+  \item \textbf{Rozkład ciągły} z~gęstością $p(x)$:
+    \[
+    \mathbb{E}[X] = \int_{-\infty}^{\infty} x \, p(x)\, dx
+    \qquad\text{(średnia ważona, wagi $= $ prawdopodobieństwo)}
+    \]
+\end{itemize}
+
+\textbf{Można wstawić dowolne wyrażenie} w~nawiasy kwadratowe:
+\begin{itemize}[leftmargin=2em]
+  \item $\mathbb{E}[X]$ --- średnia wartość $X$
+  \item $\mathbb{E}[X^2]$ --- średnia wartość $X^2$ (kwadratów)
+  \item $\mathbb{E}[(X - \mu)^2]$ --- średnia wartość odchyleń od średniej
+        (= wariancja!)
+  \item $\mathbb{E}[e^{itX}]$ --- średnia wartość $e^{itX}$
+        (= funkcja charakterystyczna!)
+\end{itemize}
 \end{tcolorbox}
 
 \medskip
@@ -1250,6 +1384,82 @@ Czwarty moment (centralny, standaryzowany) to \textbf{kurtoza} (ang.\ \textit{ku
   \item $\gamma_2 < 0$ --- \textbf{cieńsze} ogony niż Gauss (mniej wartości ekstremalnych)
 \end{itemize}
 
+\begin{center}
+\begin{tikzpicture}[scale=0.85, >=stealth]
+  % --- Platykurtyczny (cienkie ogony) ---
+  \begin{scope}[shift={(-5,0)}]
+    \draw[->] (-3.2,0) -- (3.5,0);
+    \draw[->] (0,-0.1) -- (0,2.5);
+    % Uniform-like (szeroki, płaski)
+    \draw[thick, lejepaGreen, domain=-2.2:2.2, samples=80]
+      plot (\x, {2.0*exp(-0.5*\x*\x/(1.8*1.8))});
+    % Gauss reference (cienka linia)
+    \draw[gray, dashed, domain=-3:3, samples=80]
+      plot (\x, {1.8*exp(-0.5*\x*\x)});
+    \node[below, text width=3cm, align=center] at (0,-0.5)
+      {\small $\gamma_2 < 0$\\\footnotesize\textbf{platykurtyczny}\\\footnotesize(cienkie ogony,\\\footnotesize płaski szczyt)};
+  \end{scope}
+  % --- Gauss (mezokurtyczny) ---
+  \begin{scope}[shift={(0,0)}]
+    \draw[->] (-3.2,0) -- (3.5,0);
+    \draw[->] (0,-0.1) -- (0,2.5);
+    \draw[thick, lejepaBlue, domain=-3:3, samples=80]
+      plot (\x, {1.8*exp(-0.5*\x*\x)});
+    \node[below, text width=3cm, align=center] at (0,-0.5)
+      {\small $\gamma_2 = 0$\\\footnotesize\textbf{mezokurtyczny}\\\footnotesize(Gauss --- punkt\\\footnotesize odniesienia)};
+  \end{scope}
+  % --- Leptokurtyczny (grube ogony) ---
+  \begin{scope}[shift={(5,0)}]
+    \draw[->] (-3.2,0) -- (3.5,0);
+    \draw[->] (0,-0.1) -- (0,2.5);
+    % Laplace-like (ostry szczyt, grube ogony)
+    \draw[thick, lejepaRed, domain=-3:3, samples=80]
+      plot (\x, {2.2*exp(-1.8*abs(\x))});
+    % Gauss reference
+    \draw[gray, dashed, domain=-3:3, samples=80]
+      plot (\x, {1.8*exp(-0.5*\x*\x)});
+    \node[below, text width=3cm, align=center] at (0,-0.5)
+      {\small $\gamma_2 > 0$\\\footnotesize\textbf{leptokurtyczny}\\\footnotesize(grube ogony,\\\footnotesize ostry szczyt)};
+  \end{scope}
+\end{tikzpicture}
+\end{center}
+
+\begin{tcolorbox}[colback=orange!5, colframe=orange!70!black, breakable,
+  title={Jak czytać ten rysunek?}]
+
+Na każdym wykresie szara przerywana linia to \textbf{Gauss} (punkt odniesienia, $\gamma_2 = 0$).
+Kolorowa linia to porównywany rozkład.
+
+\textbf{Lewy wykres} (zielony, $\gamma_2 < 0$):
+Rozkład jest \textbf{szerszy i~bardziej płaski} niż Gauss --- wartości
+rozkładają się bardziej równomiernie, mniej ekstremalnych wyników.
+Przykład: rozkład jednostajny (``każda wartość jednakowo prawdopodobna'').
+
+\textbf{Środkowy wykres} (niebieski, $\gamma_2 = 0$):
+To sam \textbf{Gauss} $\mathcal{N}(0,1)$ --- ``złoty środek''.
+
+\textbf{Prawy wykres} (czerwony, $\gamma_2 > 0$):
+Rozkład ma \textbf{ostrzejszy szczyt} i~\textbf{grubsze ogony} niż Gauss ---
+większość wartości skupia się blisko średniej,
+ale \textit{zdarzają się} wartości bardzo dalekie od środka.
+Przykład: rozkład Laplace'a, rozkład $t$-Studenta z~małą liczbą stopni swobody.
+
+\medskip
+\textbf{Dlaczego to ważne?}
+W~finansach: grube ogony ($\gamma_2 > 0$) oznaczają, że kryzysy (duże straty)
+zdarzają się \textit{częściej}, niż przewidywałby Gauss.
+Kryzys 2008~r.\ był ``wydarzeniem o~25~sigma'' według modelu Gaussowskiego ---
+czyli praktycznie niemożliwym. A~jednak się zdarzył,
+bo rynki mają $\gamma_2 \gg 0$.
+\end{tcolorbox}
+
+\textbf{Dlaczego potęga 4?}
+Potęga parzysta, więc $(x - \mu)^4$ jest zawsze $\geq 0$ (jak wariancja).
+Ale potęga $4$ wzmacnia \textbf{duże odchylenia} znacznie bardziej niż kwadrat:
+jeśli punkt jest $3\sigma$ od średniej, to $(3\sigma)^2 = 9\sigma^2$,
+ale $(3\sigma)^4 = 81\sigma^4$ --- dziewięciokrotnie większy wkład!
+Dlatego kurtoza jest szczególnie wrażliwa na \textit{wartości ekstremalne} (ogony).
+
 \bigskip
 \textbf{Ogólna definicja: $n$-ty moment}
 
@@ -1287,19 +1497,19 @@ Dla $\mathcal{N}(0,1)$: $\mu = 0$, $\sigma^2 = 1$, $\gamma_1 = 0$, $\gamma_2 = 0
 
 \begin{keyinsight}[Momenty to ``pytania'' zadawane rozkładowi]
 Można myśleć o~momentach jak o~coraz trudniejszych pytaniach:
-\begin{enumerate}[leftmargin=2em]
+\begin{enumerate}[leftmargin=3.5em, labelsep=0.5em]
   \item[\textbf{1.}] Gdzie jest środek? $\longrightarrow$ średnia
   \item[\textbf{2.}] Jak bardzo rozrzucony? $\longrightarrow$ wariancja
   \item[\textbf{3.}] Czy symetryczny? $\longrightarrow$ skośność
   \item[\textbf{4.}] Czy ma grube ogony? $\longrightarrow$ kurtoza
-  \item[\textbf{5,6,\ldots}] Coraz subtelniejsze cechy kształtu\ldots
+  \item[\textbf{5, 6, \ldots}] Coraz subtelniejsze cechy kształtu\ldots
 \end{enumerate}
 Znając \textit{wszystkie} momenty (nieskończenie wiele), chcielibyśmy
 odtworzyć cały rozkład. Czy to jest możliwe? O~tym za chwilę.
 \end{keyinsight}
 
-%% ----- Element 0.8: Dlaczego akurat e^{itX}? -----
-\subsubsection{Element 0.8: Dlaczego akurat $e^{itX}$? --- skąd ten wzór}
+%% ----- Element 6: Dlaczego akurat e^{itX}? -----
+\subsubsection{Element 6: Dlaczego akurat $e^{itX}$? --- skąd ten wzór}
 
 \begin{tcolorbox}[colback=red!5, colframe=red!60!black, breakable,
   title={Pytanie: Dlaczego $e^{itX}$, a~nie coś prostszego?}]
@@ -1406,8 +1616,8 @@ Jeśli znasz przetwarzanie sygnałów --- CF robi z~rozkładem dokładnie to,
 co FFT robi z~sygnałem: zamienia go z~``dziedziny wartości''
 na ``dziedzinę częstotliwości''.
 
-%% ----- Element 1: Formalna definicja CF -----
-\subsubsection{Element 1: Formalna definicja funkcji charakterystycznej}
+%% ----- Element 7: Formalna definicja CF -----
+\subsubsection{Element 7: Formalna definicja funkcji charakterystycznej}
 
 Teraz możemy podać formalną definicję --- po powyższych wyjaśnieniach
 powinna być już zrozumiała:
@@ -1482,8 +1692,8 @@ CF rzutu monetą to po prostu $\cos t$ --- czysta oscylacja!
 Wygląda zupełnie inaczej niż CF Gaussa (który jest $e^{-t^2/2}$, gładki dzwonek).
 \end{tcolorbox}
 
-%% ----- Element 2: CF standardowego Gaussa -----
-\subsubsection{Element 2: CF standardowego Gaussa --- cel, do którego dążymy}
+%% ----- Element 8: CF standardowego Gaussa -----
+\subsubsection{Element 8: CF standardowego Gaussa --- cel, do którego dążymy}
 
 Jeśli $X \sim \mathcal{N}(0,1)$, to jego funkcja charakterystyczna ma piękną, prostą postać:
 \begin{equation}
@@ -1570,8 +1780,8 @@ To znaczy, że Gauss $\mathcal{N}(0,1)$ jest ``gładki'' i~nie ma ostrych krawę
 \textbf{To jest nasz cel:} chcemy, żeby rzuty embeddingów miały CF
 wyglądającą dokładnie jak $e^{-t^2/2}$.
 
-%% ----- Element 3: Empiryczna CF -----
-\subsubsection{Element 3: Empiryczna CF --- co mamy w~praktyce}
+%% ----- Element 9: Empiryczna CF -----
+\subsubsection{Element 9: Empiryczna CF --- co mamy w~praktyce}
 
 W~treningu nie znamy rozkładu $p(x)$ analitycznie --- mamy tylko \textbf{próbkę}:
 $N$ liczb $u_1, u_2, \ldots, u_N$ (rzuty embeddingów z~batcha).
@@ -1602,8 +1812,8 @@ Jeśli nie --- będzie wyglądała inaczej.
 Im więcej punktów ($N$ większe), tym ECF jest bliższa prawdziwej CF
 (prawo wielkich liczb: średnia z~próbki zbliża się do wartości oczekiwanej).
 
-%% ----- Element 4: Porównanie --- odległość między CF-ami -----
-\subsubsection{Element 4: Porównanie --- jak mierzymy różnicę?}
+%% ----- Element 10: Porównanie --- odległość między CF-ami -----
+\subsubsection{Element 10: Porównanie --- jak mierzymy różnicę?}
 
 Mamy dwie krzywe:
 \begin{itemize}[leftmargin=2em]
@@ -1627,8 +1837,8 @@ Kwadrat modułu $|a - b|^2$ jest zawsze $\geq 0$ --- mierzy ``odległość'' bez
 Bo chcemy porównać krzywe \textit{na całej dziedzinie}, nie tylko w~jednym punkcie.
 Gdybyśmy sprawdzili tylko $t = 0$, obie CF dają $1$ (zawsze!) --- nic byśmy nie wykryli.
 
-%% ----- Element 5: Waga $w(t)$ -----
-\subsubsection{Element 5: Waga $w(t)$ --- dlaczego nie wszystkie częstotliwości są równie ważne}
+%% ----- Element 11: Waga $w(t)$ -----
+\subsubsection{Element 11: Waga $w(t)$ --- dlaczego nie wszystkie częstotliwości są równie ważne}
 
 Jest jeden problem: całka $\int_{-\infty}^{\infty} |\cdot|^2\,dt$ po \textit{wszystkich}
 częstotliwościach może nie istnieć (być nieskończona).
@@ -1645,8 +1855,8 @@ To Gaussowski ``filtr'' --- dla małych $|t|$ waga jest bliska $1$ (liczymy norm
 dla dużych $|t|$ waga spada do~$0$ (ignorujemy).
 Parametr $\sigma$ kontroluje, jak szybko waga maleje (typowo $\sigma = 1$).
 
-%% ----- Element 6: Pełny wzór EP -----
-\subsubsection{Element 6: Pełny wzór testu Eppsa-Pulleya}
+%% ----- Element 12: Pełny wzór EP -----
+\subsubsection{Element 12: Pełny wzór testu Eppsa-Pulleya}
 
 Składamy wszystkie elementy razem:
 
