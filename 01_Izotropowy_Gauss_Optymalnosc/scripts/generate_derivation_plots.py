@@ -1,8 +1,13 @@
 """Generate plots for 1D/2D/3D Gaussian derivation section."""
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 from matplotlib.patches import Ellipse
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+FIGURES_DIR = os.path.join(SCRIPT_DIR, '..', 'figures')
+os.makedirs(FIGURES_DIR, exist_ok=True)
 
 # ============================================================
 # Plot 1: 1D Gaussian — varying mu and sigma
@@ -52,8 +57,7 @@ ax.set_ylim(0, 0.5)
 ax.axhline(0, color='gray', linewidth=0.5)
 
 plt.tight_layout()
-plt.savefig('gauss_1d.pdf', bbox_inches='tight', dpi=300)
-plt.savefig('gauss_1d.png', bbox_inches='tight', dpi=200)
+plt.savefig(os.path.join(FIGURES_DIR, 'gauss_1d.pdf'), bbox_inches='tight', dpi=300)
 print("Plot 1 (1D) saved.")
 
 # ============================================================
@@ -108,8 +112,7 @@ for ax, (title, mu, Sigma, cmap) in zip(axes, configs):
             bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.9))
 
 plt.tight_layout()
-plt.savefig('gauss_2d_types.pdf', bbox_inches='tight', dpi=300)
-plt.savefig('gauss_2d_types.png', bbox_inches='tight', dpi=200)
+plt.savefig(os.path.join(FIGURES_DIR, 'gauss_2d_types.pdf'), bbox_inches='tight', dpi=300)
 print("Plot 2 (2D types) saved.")
 
 # ============================================================
@@ -117,37 +120,128 @@ print("Plot 2 (2D types) saved.")
 # ============================================================
 fig = plt.figure(figsize=(14, 6))
 
-x3 = np.linspace(-3, 3, 80)
-y3 = np.linspace(-3, 3, 80)
+x3 = np.linspace(-4, 4, 120)
+y3 = np.linspace(-4, 4, 120)
 X3, Y3 = np.meshgrid(x3, y3)
 
-# Isotropic 3D surface
-ax1 = fig.add_subplot(121, projection='3d')
+# Compute both densities
 Z_iso = (1/(2*np.pi)) * np.exp(-0.5*(X3**2 + Y3**2))
-ax1.plot_surface(X3, Y3, Z_iso, cmap='viridis', alpha=0.85, edgecolor='none')
-ax1.set_title(r'Izotropowy $\mathcal{N}(\mathbf{0}, \mathbf{I}_2)$', fontsize=13, fontweight='bold', pad=10)
-ax1.set_xlabel(r'$z_1$', fontsize=11)
-ax1.set_ylabel(r'$z_2$', fontsize=11)
-ax1.set_zlabel(r'$p(z_1,z_2)$', fontsize=11)
-ax1.view_init(elev=25, azim=-60)
 
-# Anisotropic 3D surface
-ax2 = fig.add_subplot(122, projection='3d')
 Sigma_aniso = np.array([[3.0, 0.0], [0.0, 0.3]])
 Sinv = np.linalg.inv(Sigma_aniso)
 det_a = np.linalg.det(Sigma_aniso)
 Z_aniso = (1/(2*np.pi*np.sqrt(det_a))) * np.exp(-0.5*(Sinv[0,0]*X3**2 + Sinv[1,1]*Y3**2))
-ax2.plot_surface(X3, Y3, Z_aniso, cmap='inferno', alpha=0.85, edgecolor='none')
-ax2.set_title(r'Anizotropowy: $\sigma_1^2=3, \sigma_2^2=0.3$', fontsize=13, fontweight='bold', pad=10)
+
+# Common z-axis limit for fair comparison
+z_max = max(Z_iso.max(), Z_aniso.max()) * 1.05
+
+# Isotropic 3D surface
+ax1 = fig.add_subplot(121, projection='3d')
+ax1.plot_surface(X3, Y3, Z_iso, cmap='Blues', alpha=0.9, edgecolor='none',
+                 rstride=2, cstride=2)
+# Contours on the floor to show circular shape
+ax1.contour(X3, Y3, Z_iso, levels=8, zdir='z', offset=0, cmap='Blues', alpha=0.5)
+ax1.set_title(r'Izotropowy $\mathcal{N}(\mathbf{0}, \mathbf{I}_2)$',
+              fontsize=13, fontweight='bold', pad=10)
+ax1.set_xlabel(r'$z_1$', fontsize=11)
+ax1.set_ylabel(r'$z_2$', fontsize=11)
+ax1.set_zlabel(r'$p(z_1,z_2)$', fontsize=11)
+ax1.set_zlim(0, z_max)
+ax1.view_init(elev=30, azim=-50)
+
+# Anisotropic 3D surface
+ax2 = fig.add_subplot(122, projection='3d')
+ax2.plot_surface(X3, Y3, Z_aniso, cmap='Oranges', alpha=0.9, edgecolor='none',
+                 rstride=2, cstride=2)
+# Contours on the floor to show elliptical shape
+ax2.contour(X3, Y3, Z_aniso, levels=8, zdir='z', offset=0, cmap='Oranges', alpha=0.5)
+ax2.set_title(r'Anizotropowy: $\sigma_1^2=3, \sigma_2^2=0.3$',
+              fontsize=13, fontweight='bold', pad=10)
 ax2.set_xlabel(r'$z_1$', fontsize=11)
 ax2.set_ylabel(r'$z_2$', fontsize=11)
 ax2.set_zlabel(r'$p(z_1,z_2)$', fontsize=11)
-ax2.view_init(elev=25, azim=-60)
+ax2.set_zlim(0, z_max)
+ax2.view_init(elev=30, azim=-50)
 
 plt.tight_layout()
-plt.savefig('gauss_3d_surfaces.pdf', bbox_inches='tight', dpi=300)
-plt.savefig('gauss_3d_surfaces.png', bbox_inches='tight', dpi=200)
+plt.savefig(os.path.join(FIGURES_DIR, 'gauss_3d_surfaces.pdf'), bbox_inches='tight', dpi=300)
 print("Plot 3 (3D surfaces) saved.")
+
+# ============================================================
+# Plot 3b: TRUE 3D isosurfaces — spheres vs ellipsoids (z1, z2, z3)
+# ============================================================
+fig = plt.figure(figsize=(14, 6))
+
+# Helper: parametric sphere/ellipsoid
+u_s = np.linspace(0, 2 * np.pi, 60)
+v_s = np.linspace(0, np.pi, 40)
+U, V = np.meshgrid(u_s, v_s)
+
+# Base unit sphere coordinates
+Xs = np.sin(V) * np.cos(U)
+Ys = np.sin(V) * np.sin(U)
+Zs = np.cos(V)
+
+# --- Left: Isotropic (spheres) ---
+ax1 = fig.add_subplot(121, projection='3d')
+
+# 1-sigma and 2-sigma spheres
+for r, alpha_val, label in [(1.0, 0.4, r'$1\sigma$'), (2.0, 0.15, r'$2\sigma$')]:
+    ax1.plot_surface(r*Xs, r*Ys, r*Zs, color='#2196F3', alpha=alpha_val,
+                     edgecolor='#1565C0', linewidth=0.1, rstride=3, cstride=3)
+
+# Axes through center
+ax_len = 2.8
+for vec, col, lbl in [([1,0,0], '#F44336', r'$z_1$'),
+                       ([0,1,0], '#4CAF50', r'$z_2$'),
+                       ([0,0,1], '#FF9800', r'$z_3$')]:
+    v = np.array(vec) * ax_len
+    ax1.plot([0, v[0]], [0, v[1]], [0, v[2]], color=col, linewidth=2.5)
+    ax1.text(v[0]*1.15, v[1]*1.15, v[2]*1.15, lbl, fontsize=13,
+             fontweight='bold', color=col)
+
+ax1.set_title(r'Izotropowy $\boldsymbol{\Sigma} = \mathbf{I}_3$' + '\n(izopowierzchnie = sfery)',
+              fontsize=12, fontweight='bold', pad=5)
+ax1.set_xlim(-3, 3); ax1.set_ylim(-3, 3); ax1.set_zlim(-3, 3)
+ax1.set_xlabel(r'$z_1$', fontsize=10)
+ax1.set_ylabel(r'$z_2$', fontsize=10)
+ax1.set_zlabel(r'$z_3$', fontsize=10)
+ax1.view_init(elev=20, azim=-55)
+
+# --- Right: Anisotropic (ellipsoids) ---
+ax2 = fig.add_subplot(122, projection='3d')
+
+# sigma values: sigma_1=sqrt(3)~1.73, sigma_2=sqrt(0.3)~0.55, sigma_3=1.0
+sigmas = np.array([np.sqrt(3.0), np.sqrt(0.3), 1.0])
+
+for scale, alpha_val, label in [(1.0, 0.4, r'$1\sigma$'), (2.0, 0.15, r'$2\sigma$')]:
+    Xe = scale * sigmas[0] * Xs
+    Ye = scale * sigmas[1] * Ys
+    Ze = scale * sigmas[2] * Zs
+    ax2.plot_surface(Xe, Ye, Ze, color='#FF9800', alpha=alpha_val,
+                     edgecolor='#E65100', linewidth=0.1, rstride=3, cstride=3)
+
+# Axes with lengths proportional to sigma
+for vec, sig, col, lbl in [([1,0,0], sigmas[0], '#F44336', r'$z_1\;(\sigma_1\!=\!\sqrt{3})$'),
+                             ([0,1,0], sigmas[1], '#4CAF50', r'$z_2\;(\sigma_2\!=\!\sqrt{0.3})$'),
+                             ([0,0,1], sigmas[2], '#FF9800', r'$z_3\;(\sigma_3\!=\!1)$')]:
+    v = np.array(vec) * ax_len
+    ax2.plot([0, v[0]], [0, v[1]], [0, v[2]], color=col, linewidth=2.5)
+    ax2.text(v[0]*1.15, v[1]*1.15, v[2]*1.15, lbl, fontsize=10,
+             fontweight='bold', color=col)
+
+ax2.set_title(r'Anizotropowy $\sigma_1^2\!=\!3,\;\sigma_2^2\!=\!0.3,\;\sigma_3^2\!=\!1$'
+              + '\n(izopowierzchnie = elipsoidy)',
+              fontsize=12, fontweight='bold', pad=5)
+ax2.set_xlim(-4, 4); ax2.set_ylim(-4, 4); ax2.set_zlim(-3, 3)
+ax2.set_xlabel(r'$z_1$', fontsize=10)
+ax2.set_ylabel(r'$z_2$', fontsize=10)
+ax2.set_zlabel(r'$z_3$', fontsize=10)
+ax2.view_init(elev=20, azim=-55)
+
+plt.tight_layout()
+plt.savefig(os.path.join(FIGURES_DIR, 'gauss_3d_isosurfaces.pdf'), bbox_inches='tight', dpi=300)
+print("Plot 3b (3D isosurfaces) saved.")
 
 # ============================================================
 # Plot 4: Formula decomposition visual
@@ -186,8 +280,7 @@ ax.annotate(r'$z^2/2$ rośnie' + '\n' + r'$\Rightarrow e^{-z^2/2}$ maleje' + '\n
             bbox=dict(boxstyle='round', facecolor='lightyellow'))
 
 plt.tight_layout()
-plt.savefig('gauss_decomposition.pdf', bbox_inches='tight', dpi=300)
-plt.savefig('gauss_decomposition.png', bbox_inches='tight', dpi=200)
+plt.savefig(os.path.join(FIGURES_DIR, 'gauss_decomposition.pdf'), bbox_inches='tight', dpi=300)
 print("Plot 4 (decomposition) saved.")
 
 # ============================================================
@@ -232,8 +325,7 @@ for ax, title, Sigma, cmap in zip(axes, titles, sigmas, cmaps):
     ax.axvline(0, color='gray', linewidth=0.3)
 
 plt.tight_layout()
-plt.savefig('gauss_isolines.pdf', bbox_inches='tight', dpi=300)
-plt.savefig('gauss_isolines.png', bbox_inches='tight', dpi=200)
+plt.savefig(os.path.join(FIGURES_DIR, 'gauss_isolines.pdf'), bbox_inches='tight', dpi=300)
 print("Plot 5 (isolines) saved.")
 
 print("\nAll derivation plots generated!")

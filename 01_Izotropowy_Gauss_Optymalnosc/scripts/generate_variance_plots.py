@@ -1,7 +1,12 @@
 """Generate plots for variance theory and decision boundary explanation."""
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+FIGURES_DIR = os.path.join(SCRIPT_DIR, '..', 'figures')
+os.makedirs(FIGURES_DIR, exist_ok=True)
 
 np.random.seed(42)
 
@@ -77,7 +82,7 @@ ax.text(0, -3.0, r'Wzdłuż $z_2$ punkty na kupce $\Rightarrow$ brak separacji',
         fontsize=9, ha='center', bbox=dict(boxstyle='round', facecolor='#FFCDD2'))
 
 plt.tight_layout()
-plt.savefig('decision_boundary.pdf', bbox_inches='tight', dpi=300)
+plt.savefig(os.path.join(FIGURES_DIR, 'decision_boundary.pdf'), bbox_inches='tight', dpi=300)
 print("Plot 1 (decision boundary) saved.")
 
 # ============================================================
@@ -137,7 +142,7 @@ ax.set_title('Wariancja = średni kwadrat\nodległości od średniej', fontsize=
 ax.set_xlabel('Wartość', fontsize=11)
 
 plt.tight_layout()
-plt.savefig('variance_explanation.pdf', bbox_inches='tight', dpi=300)
+plt.savefig(os.path.join(FIGURES_DIR, 'variance_explanation.pdf'), bbox_inches='tight', dpi=300)
 print("Plot 2 (variance) saved.")
 
 # ============================================================
@@ -179,7 +184,7 @@ for ax, (title, cov, color) in zip(axes, configs):
             fontsize=11, ha='center', bbox=dict(boxstyle='round', facecolor='lightyellow'))
 
 plt.tight_layout()
-plt.savefig('covariance_types.pdf', bbox_inches='tight', dpi=300)
+plt.savefig(os.path.join(FIGURES_DIR, 'covariance_types.pdf'), bbox_inches='tight', dpi=300)
 print("Plot 3 (covariance) saved.")
 
 # ============================================================
@@ -225,7 +230,7 @@ for ax, (title, cov, cmap) in zip(axes, cov_configs):
     ax.set_ylabel(r'$z_2$', fontsize=11)
 
 plt.tight_layout()
-plt.savefig('eigenvalues_shape.pdf', bbox_inches='tight', dpi=300)
+plt.savefig(os.path.join(FIGURES_DIR, 'eigenvalues_shape.pdf'), bbox_inches='tight', dpi=300)
 print("Plot 4 (eigenvalues) saved.")
 
 print("\nAll variance/decision plots generated!")

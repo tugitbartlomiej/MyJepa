@@ -1,9 +1,16 @@
 """Generate example vs counter-example: isotropic vs anisotropic embeddings
 for downstream classification tasks."""
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch
 from matplotlib.colors import ListedColormap
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+FIGURES_DIR = os.path.join(SCRIPT_DIR, '..', 'figures')
+PNG_DIR = os.path.join(SCRIPT_DIR, '..', 'png_preview')
+os.makedirs(FIGURES_DIR, exist_ok=True)
+os.makedirs(PNG_DIR, exist_ok=True)
 
 np.random.seed(42)
 
@@ -137,6 +144,6 @@ fig.text(0.5, 0.50, r'$\Downarrow$ Co się zmienia, gdy rozkład jest anizotropo
          bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.9))
 
 plt.tight_layout(rect=[0.05, 0, 1, 1])
-plt.savefig('figures/isotropy_example_vs_counterexample.pdf', bbox_inches='tight')
-plt.savefig('png_preview/isotropy_example_vs_counterexample.png', dpi=150, bbox_inches='tight')
+plt.savefig(os.path.join(FIGURES_DIR, 'isotropy_example_vs_counterexample.pdf'), bbox_inches='tight')
+plt.savefig(os.path.join(PNG_DIR, 'isotropy_example_vs_counterexample.png'), dpi=150, bbox_inches='tight')
 print("Plot saved.")

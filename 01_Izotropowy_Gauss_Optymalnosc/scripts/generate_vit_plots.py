@@ -1,9 +1,14 @@
 """Generate plots explaining Vision Transformer (ViT) architecture."""
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Rectangle
 from matplotlib.gridspec import GridSpec
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+FIGURES_DIR = os.path.join(SCRIPT_DIR, '..', 'figures')
+os.makedirs(FIGURES_DIR, exist_ok=True)
 
 # ============================================================
 # Plot 1: Image → Patches → Flat vectors
@@ -77,7 +82,7 @@ ax.set_xlabel('wymiary embeddingu', fontsize=10)
 ax.set_title(r'4. Projekcja + [CLS] token' + '\n' + r'$197$ tokenów $\times$ $384$ dim', fontsize=12, fontweight='bold')
 
 plt.tight_layout()
-plt.savefig('vit_patches.pdf', bbox_inches='tight', dpi=300)
+plt.savefig(os.path.join(FIGURES_DIR, 'vit_patches.pdf'), bbox_inches='tight', dpi=300)
 print("Plot 1 (patches) saved.")
 
 # ============================================================
@@ -194,7 +199,7 @@ ax.text(1.5, 1.5, 'ViT-Small:\n12 bloków\n6 głów attention\n384 dim embedding
         fontsize=9, ha='center', color='#333',
         bbox=dict(boxstyle='round', facecolor='#F5F5F5', alpha=0.9))
 
-plt.savefig('vit_pipeline.pdf', bbox_inches='tight', dpi=300)
+plt.savefig(os.path.join(FIGURES_DIR, 'vit_pipeline.pdf'), bbox_inches='tight', dpi=300)
 print("Plot 2 (pipeline) saved.")
 
 # ============================================================
@@ -214,7 +219,7 @@ attn = attn / attn.max()
 for i in range(14):
     for j in range(14):
         a = attn[i, j]
-        grid[i, j] = [1-a, 1-a*0.3, 1-a]  # Red = high attention
+        grid[i, j] = [1, 1-a, 1-a]  # Red = high attention
 
 ax.imshow(grid, interpolation='nearest')
 for i in range(15):
@@ -275,7 +280,7 @@ ax.annotate('Epoka ~50:\nattention uczy się\nna co patrzeć',
             bbox=dict(boxstyle='round', facecolor='lightyellow'))
 
 plt.tight_layout()
-plt.savefig('vit_attention.pdf', bbox_inches='tight', dpi=300)
+plt.savefig(os.path.join(FIGURES_DIR, 'vit_attention.pdf'), bbox_inches='tight', dpi=300)
 print("Plot 3 (attention) saved.")
 
 # ============================================================
@@ -336,7 +341,7 @@ ax.text(4, -1.8, 'Bliskie pozycje = wysokie podobieństwo (zielony)\nDalekie = n
         fontsize=10, ha='center', color='#1565C0')
 
 plt.tight_layout()
-plt.savefig('vit_positions.pdf', bbox_inches='tight', dpi=300)
+plt.savefig(os.path.join(FIGURES_DIR, 'vit_positions.pdf'), bbox_inches='tight', dpi=300)
 print("Plot 4 (positions) saved.")
 
 print("\nAll ViT plots generated!")

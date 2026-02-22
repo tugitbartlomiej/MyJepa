@@ -1,0 +1,32 @@
+\clearpage
+%% ============================================================
+\section{Pełny loss LeJEPA}
+\label{sec:fulloss}
+%% ============================================================
+
+\begin{equation}
+\boxed{
+\mathcal{L}_{\text{LeJEPA}} =
+\underbrace{\frac{\lambda}{V} \sum_{v=1}^{V} \mathrm{SIGReg}\!\left(\{\mathbf{z}_{n,v}\}_{n=1}^B\right)}_{\text{regularyzacja: wymuś } \mathcal{N}(\mathbf{0}, \mathbf{I})}
++ \underbrace{\frac{1-\lambda}{B} \sum_{n=1}^{B} \mathcal{L}_{\text{pred}}^{(V_g)}\!\left(\{\mathbf{z}_{n,v}\}_{v=1}^V\right)}_{\text{predykcja: wymuś semantyczną spójność}}
+}
+\label{eq:lejepa}
+\end{equation}
+
+gdzie loss predykcyjny to:
+\begin{equation}
+\mathcal{L}_{\text{pred}} = \frac{1}{V}\sum_{v'=1}^{V}
+\left\|\boldsymbol{\mu}_n - \mathbf{z}_{n,v'}\right\|_2^2,
+\quad
+\boldsymbol{\mu}_n \triangleq \frac{1}{V_g}\sum_{v=1}^{V_g} \mathbf{z}_{n,v}
+\end{equation}
+
+\begin{keyinsight}[Jeden hiperparametr!]
+$\lambda$ kontroluje trade-off między:
+\begin{itemize}
+  \item $\lambda \to 0$: czysta predykcja (ryzyko kolapsu),
+  \item $\lambda \to 1$: czysty SIGReg (brak semantycznej struktury),
+  \item $\lambda = 0.05$: \textbf{rekomendowane} — stabilne na wielu datasetach i architekturach.
+\end{itemize}
+\end{keyinsight}
+

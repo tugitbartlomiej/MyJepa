@@ -1,0 +1,20 @@
+\clearpage
+%% ============================================================
+\section{Podsumowanie}
+%% ============================================================
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{p{0.25\textwidth}p{0.65\textwidth}}
+\toprule
+\textbf{Pytanie} & \textbf{Odpowiedź} \\
+\midrule
+Jaki rozkład embeddingów? & $\mathcal{N}(\mathbf{0}, \mathbf{I}_K)$ — izotropowy Gauss \\
+Dlaczego izotropowy? & Minimalizuje bias i wariancję linear probe (Lem.\ 1--2) \\
+Dlaczego Gauss? & Minimalizuje ISB k-NN/kernel (Tw.\ 1) \\
+Jak wymusić? & SIGReg: test Eppsa-Pulleya na losowych rzutach 1D \\
+Ile hiperparametrów? & Jeden: $\lambda = 0.05$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+

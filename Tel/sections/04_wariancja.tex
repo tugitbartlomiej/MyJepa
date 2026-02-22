@@ -1,0 +1,183 @@
+\clearpage
+%% ============================================================
+\section{Teoria wariancji: od podstaw}
+\label{sec:wariancja}
+%% ============================================================
+
+Zanim przejdziemy do rozkładu Gaussa, musimy zrozumieć pojęcia,
+z których jest zbudowany: \textbf{wariancja}, \textbf{kowariancja}
+i \textbf{macierz kowariancji}.
+
+\subsection{Wariancja: jak bardzo dane się rozrzucają?}
+
+\begin{definition}[Średnia (wartość oczekiwana)]
+Dla $N$ pomiarów $x_1, x_2, \ldots, x_N$:
+\begin{equation}
+\mu = \frac{1}{N}\sum_{i=1}^{N} x_i
+\end{equation}
+To ``środek ciężkości'' danych.
+\end{definition}
+
+\begin{definition}[Wariancja]
+\begin{equation}
+\boxed{
+\sigma^2 = \frac{1}{N}\sum_{i=1}^{N} (x_i - \mu)^2
+}
+\end{equation}
+Wariancja to \textbf{średni kwadrat odległości} od średniej.
+\end{definition}
+
+\textbf{Dlaczego kwadrat?} Bo odchylenia w górę ($x_i > \mu$) i w dół ($x_i < \mu$)
+by się nawzajem skasowały. Kwadrat sprawia, że każde odchylenie ``liczy się'' pozytywnie.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/variance_explanation.pdf}
+\caption{\textbf{Lewo}: Mała wariancja — punkty skupione blisko średniej.
+\textbf{Środek}: Duża wariancja — punkty rozrzucone daleko.
+\textbf{Prawo}: Wizualizacja wzoru — fioletowe strzałki to odchylenia $(x_i - \mu)$,
+wariancja to średnia ich kwadratów.}
+\label{fig:variance}
+\end{figure}
+
+\begin{definition}[Odchylenie standardowe]
+\begin{equation}
+\sigma = \sqrt{\sigma^2}
+\end{equation}
+To ``typowa odległość'' punktu od średniej, w oryginalnych jednostkach.
+\end{definition}
+
+\begin{remark}[Przykład liczbowy]
+Dane: $x = \{2, 3, 5, 7, 8\}$.
+\begin{align}
+\mu &= \frac{2+3+5+7+8}{5} = 5 \\
+\sigma^2 &= \frac{(2{-}5)^2 + (3{-}5)^2 + \cdots + (8{-}5)^2}{5} \notag\\
+&= \frac{9+4+0+4+9}{5} = 5.2 \\
+\sigma &= \sqrt{5.2} \approx 2.28
+\end{align}
+Interpretacja: typowy punkt odchyla się o $\approx 2.3$ od średniej $5$.
+\end{remark}
+
+\subsection{Kowariancja: czy dwie zmienne ``chodzą razem''?}
+
+Gdy mamy \textbf{dwie} zmienne $z_1$ i $z_2$ (np.\ dwa wymiary embeddingu),
+chcemy wiedzieć: \textit{czy gdy $z_1$ rośnie, $z_2$ też rośnie?}
+
+\begin{definition}[Kowariancja]
+\begin{equation}
+\boxed{
+\mathrm{Cov}(z_1, z_2) = \sigma_{12} = \frac{1}{N}\sum_{i=1}^{N}
+(z_{1,i} - \mu_1)(z_{2,i} - \mu_2)
+}
+\end{equation}
+\end{definition}
+
+\textbf{Interpretacja znaku}:
+\begin{itemize}
+  \item $\sigma_{12} > 0$: $z_1$ rośnie $\Rightarrow$ $z_2$ też rośnie (\textbf{korelacja dodatnia}),
+  \item $\sigma_{12} = 0$: brak związku liniowego (\textbf{niezależne} lub ortogonalne),
+  \item $\sigma_{12} < 0$: $z_1$ rośnie $\Rightarrow$ $z_2$ maleje (\textbf{korelacja ujemna}).
+\end{itemize}
+
+\begin{remark}
+Wariancja to specjalny przypadek kowariancji zmiennej z samą sobą:
+$\mathrm{Cov}(z_1, z_1) = \sigma_1^2$ (wariancja $z_1$).
+\end{remark}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/covariance_types.pdf}
+\caption{Trzy typy kowariancji. Czerwone strzałki: kierunki główne (wektory własne).
+\textbf{Lewo}: $\sigma_{12} > 0$ — punkty ciągną się od lewego-dołu do prawego-góry.
+\textbf{Środek}: $\sigma_{12} = 0$ — okrągła chmurka, brak związku.
+\textbf{Prawo}: $\sigma_{12} < 0$ — od lewego-góry do prawego-dołu.}
+\label{fig:covariance}
+\end{figure}
+
+\subsection{Macierz kowariancji: pełny obraz w $K$ wymiarach}
+
+Gdy mamy $K$ zmiennych ($K$ wymiarów embeddingu), potrzebujemy
+\textbf{jednej struktury}, która zbiera \textit{wszystkie} wariancje i kowariancje.
+
+\begin{definition}[Macierz kowariancji]
+Dla wektora $\mathbf{z} = (z_1, \ldots, z_K)^\top$:
+\begin{equation}
+\boxed{
+\boldsymbol{\Sigma} = \begin{pmatrix}
+\sigma_1^2 & \sigma_{12} & \cdots & \sigma_{1K} \\
+\sigma_{12} & \sigma_2^2 & \cdots & \sigma_{2K} \\
+\vdots & \vdots & \ddots & \vdots \\
+\sigma_{1K} & \sigma_{2K} & \cdots & \sigma_K^2
+\end{pmatrix}
+\in \mathbb{R}^{K \times K}
+}
+\end{equation}
+\begin{itemize}
+  \item \textbf{Diagonala}: wariancje $\sigma_k^2$ — rozrzut wzdłuż każdej osi,
+  \item \textbf{Pozadiagonala}: kowariancje $\sigma_{ij}$ — powiązania między osiami,
+  \item Macierz jest \textbf{symetryczna}: $\sigma_{ij} = \sigma_{ji}$.
+\end{itemize}
+\end{definition}
+
+\textbf{Przykład 2D}:
+\begin{equation}
+\boldsymbol{\Sigma} = \begin{pmatrix}
+\sigma_1^2 & \sigma_{12} \\
+\sigma_{12} & \sigma_2^2
+\end{pmatrix}
+= \begin{pmatrix}
+\text{rozrzut w }z_1 & \text{związek }z_1 \leftrightarrow z_2 \\
+\text{związek }z_1 \leftrightarrow z_2 & \text{rozrzut w }z_2
+\end{pmatrix}
+\end{equation}
+
+\subsection{Wartości własne: co mówią o kształcie danych?}
+
+Macierz kowariancji $\boldsymbol{\Sigma}$ można rozłożyć na \textbf{wartości własne}
+$\lambda_1, \ldots, \lambda_K$ i \textbf{wektory własne} $\mathbf{v}_1, \ldots, \mathbf{v}_K$:
+
+\begin{equation}
+\boldsymbol{\Sigma}\mathbf{v}_k = \lambda_k \mathbf{v}_k
+\end{equation}
+
+\textbf{Co to znaczy?}
+\begin{itemize}
+  \item $\mathbf{v}_k$: \textbf{kierunek} $k$-tej ``osi'' danych (po obrocie do naturalnych osi),
+  \item $\lambda_k$: \textbf{wariancja wzdłuż} tego kierunku — ile ``rozrzutu'' jest w tym kierunku,
+  \item $\sqrt{\lambda_k}$: długość $k$-tej półosi elipsy (elipsoidy).
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/eigenvalues_shape.pdf}
+\caption{Wartości własne definiują kształt chmury punktów.
+\textbf{Lewo}: $\lambda_1 = \lambda_2 = 1$ $\Rightarrow$ okrąg (\textbf{izotropia!}).
+\textbf{Środek}: $\lambda_1 = 4, \lambda_2 = 0.25$ $\Rightarrow$ elipsa wzdłuż osi.
+\textbf{Prawo}: $\lambda_1 = 3, \lambda_2 = 0.5$ $\Rightarrow$ obrócona elipsa.
+Czerwone strzałki: wektory własne (kierunki), ich długość $\propto \sqrt{\lambda_k}$.}
+\label{fig:eigenvalues}
+\end{figure}
+
+\subsection{Izotropia = wszystkie wartości własne równe}
+
+\begin{keyinsight}[Kluczowe połączenie z LeJEPA]
+\textbf{Izotropowy} rozkład = macierz kowariancji to wielokrotność jednostkowej:
+\begin{equation}
+\boldsymbol{\Sigma} = \mathbf{I}_K
+\quad \iff \quad
+\lambda_1 = \lambda_2 = \cdots = \lambda_K = 1
+\end{equation}
+
+Co to oznacza geometrycznie:
+\begin{itemize}
+  \item Dane rozrzucone \textbf{jednakowo} we wszystkich kierunkach,
+  \item Chmura punktów to \textbf{hipersfera}, nie elipsoida,
+  \item Żaden wymiar embeddingu nie jest ``ważniejszy'' od innego,
+  \item \textbf{Kowariancje zerowe}: wymiary są niezależne ($\sigma_{ij} = 0$ dla $i \neq j$).
+\end{itemize}
+
+Dlatego LeJEPA wymusza $\boldsymbol{\Sigma} = \mathbf{I}$ za pomocą SIGReg:
+żeby \textit{żadne} przyszłe zadanie downstream nie było ``oślepione''
+brakiem informacji w którymkolwiek kierunku.
+\end{keyinsight}
+

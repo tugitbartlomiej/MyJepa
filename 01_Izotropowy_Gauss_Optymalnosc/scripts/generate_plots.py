@@ -1,8 +1,13 @@
 """Generate plots for isotropic vs anisotropic Gaussian explanation."""
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 from mpl_toolkits.mplot3d import Axes3D
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+FIGURES_DIR = os.path.join(SCRIPT_DIR, '..', 'figures')
+os.makedirs(FIGURES_DIR, exist_ok=True)
 
 # ============================================================
 # Plot 1: 2D isotropic vs anisotropic Gaussian
@@ -78,8 +83,7 @@ ax.text(0.3, 1.5, 'Brak informacji!\nWszystkie embeddingi\nw jednym punkcie',
         bbox=dict(boxstyle='round,pad=0.3', facecolor='#FFCDD2', alpha=0.8))
 
 plt.tight_layout()
-plt.savefig('isotropic_vs_anisotropic_2d.pdf', bbox_inches='tight', dpi=300)
-plt.savefig('isotropic_vs_anisotropic_2d.png', bbox_inches='tight', dpi=200)
+plt.savefig(os.path.join(FIGURES_DIR, 'isotropic_vs_anisotropic_2d.pdf'), bbox_inches='tight', dpi=300)
 print("Plot 1 saved.")
 
 # ============================================================
@@ -118,8 +122,7 @@ ax2.set_ylabel(r'$z_2$', fontsize=11)
 ax2.set_title(r'Izolinie gestości — okręgi (izotropia!)', fontsize=13, fontweight='bold')
 
 plt.tight_layout()
-plt.savefig('isotropic_gaussian_3d.pdf', bbox_inches='tight', dpi=300)
-plt.savefig('isotropic_gaussian_3d.png', bbox_inches='tight', dpi=200)
+plt.savefig(os.path.join(FIGURES_DIR, 'isotropic_gaussian_3d.pdf'), bbox_inches='tight', dpi=300)
 print("Plot 2 saved.")
 
 # ============================================================
@@ -186,8 +189,7 @@ ax.set_ylabel(r'$z_2$', fontsize=11)
 ax.legend(fontsize=9, loc='upper left')
 
 plt.tight_layout()
-plt.savefig('bias_variance_illustration.pdf', bbox_inches='tight', dpi=300)
-plt.savefig('bias_variance_illustration.png', bbox_inches='tight', dpi=200)
+plt.savefig(os.path.join(FIGURES_DIR, 'bias_variance_illustration.pdf'), bbox_inches='tight', dpi=300)
 print("Plot 3 saved.")
 
 # ============================================================
@@ -233,8 +235,7 @@ ax.legend(fontsize=9)
 ax.set_xlim(-5, 5)
 
 plt.tight_layout()
-plt.savefig('characteristic_functions.pdf', bbox_inches='tight', dpi=300)
-plt.savefig('characteristic_functions.png', bbox_inches='tight', dpi=200)
+plt.savefig(os.path.join(FIGURES_DIR, 'characteristic_functions.pdf'), bbox_inches='tight', dpi=300)
 print("Plot 4 saved.")
 
 print("\nAll plots generated successfully!")

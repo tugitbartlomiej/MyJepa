@@ -149,7 +149,7 @@ Bias $\mathbf{b} \in \mathbb{R}^2$ to dodatkowy uczony wektor (przesunięcie):
 
 \begin{center}
 \renewcommand{\arraystretch}{1.5}
-\begin{tabular}{cp{10cm}}
+\begin{tabular}{p{1.5cm}p{0.68\textwidth}}
 \toprule
 \textbf{Element} & \textbf{Interpretacja} \\
 \midrule
@@ -174,9 +174,10 @@ Teraz podstaw prawdziwe wymiary:
 
 \begin{center}
 \renewcommand{\arraystretch}{1.5}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{rll}
 \toprule
- & \textbf{Nasz przykład} & \textbf{ViT-Small (prawdziwy)} \\
+ & \textbf{Przykład} & \textbf{ViT-Small} \\
 \midrule
 Patch (wejście) & $\mathbf{p} \in \mathbb{R}^{3}$ (3 piksele RGB) & $\mathbf{p} \in \mathbb{R}^{768}$ ($16 \times 16 \times 3$ pikseli) \\
 Macierz wag & $\mathbf{W} \in \mathbb{R}^{2 \times 3}$ (6 wag) & $\mathbf{W} \in \mathbb{R}^{384 \times 768}$ (294\,912 wag) \\
@@ -185,9 +186,9 @@ Embedding (wyjście) & $\mathbf{e} \in \mathbb{R}^{2}$ (2 cechy) & $\mathbf{e} \
 \midrule
 \textit{Operacja na 1 cechę} & $3$ mnożenia + $3$ dodawania & $768$ mnożeń + $768$ dodawań \\
 \textit{Wszystkie cechy} & $2 \times 3 = 6$ operacji & $384 \times 768 = 294\,912$ operacji \\
-\textit{Wszystkie patche} & -- & $196 \times 294\,912 \approx \mathbf{57.8\text{M}}$ operacji \\
+\textit{Wszystkie patche} & -- & $\approx\mathbf{57.8\text{M}}$ operacji \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{center}
 
 \subsubsection{Wzorzec ogólny: co robi \textit{każdy} wiersz macierzy?}
@@ -448,7 +449,7 @@ Więc przez chain rule \textbf{oba dostają ten sam gradient}:
 Ale potem gradient \textbf{rozchodzi się} w dwie różne gałęzie:
 
 \begin{center}
-\begin{tabular}{cp{10.5cm}}
+\begin{tabular}{p{1.5cm}p{0.68\textwidth}}
 \toprule
 \textbf{Gałąź} & \textbf{Co się dzieje z gradientem?} \\
 \midrule
@@ -482,7 +483,7 @@ drugi -- żeby widoki tego samego obrazu miały podobne embeddingi.
 $\mathcal{L}$ (loss) \\[0.3em]
 $\downarrow$ \small{gradient $\frac{\partial \mathcal{L}}{\partial \mathbf{h}_i}$} \\[0.3em]
 $\mathbf{h}_i = \mathbf{e}_i + \mathbf{pos}_i$ \\[0.5em]
-\begin{tabular}{c@{\hspace{2cm}}c}
+\begin{tabular}{c@{\hspace{0.5cm}}c}
 $\swarrow$ \textbf{Gałąź lewa} & $\searrow$ \textbf{Gałąź prawa} \\[0.5em]
 $\mathbf{e}_i$ & $\mathbf{pos}_i$ \\
 \small{(to nie jest parametr!} & \small{(to JEST parametr)} \\
@@ -588,7 +589,7 @@ Jak skompresować 197 wektorów do 1?
 
 \begin{center}
 \renewcommand{\arraystretch}{1.4}
-\begin{tabular}{lcp{6cm}}
+\begin{tabular}{lcp{0.45\textwidth}}
 \toprule
 \textbf{Metoda} & \textbf{Wynik} & \textbf{Problem} \\
 \midrule
@@ -1372,13 +1373,14 @@ ujemne wartości do zera, tworząc efektywną selekcję cech.}
 MLP działa jak \textbf{odwrócony bottleneck} (inverted bottleneck):
 
 \begin{center}
+\footnotesize
 \begin{tabular}{ccccc}
-$\mathbf{h} \in \mathbb{R}^{384}$
-& $\xrightarrow{\;\mathbf{W}_1\;}$
+$\mathbb{R}^{384}$
+& $\xrightarrow{\mathbf{W}_1}$
 & $\mathbb{R}^{1536}$
-& $\xrightarrow{\;\mathbf{W}_2\;}$
-& $\mathbf{h}_{\text{out}} \in \mathbb{R}^{384}$ \\
-\small{wejście} & \small{rozszerzenie $4\times$} & \small{ukryta warstwa} & \small{kompresja $4\times$} & \small{wyjście}
+& $\xrightarrow{\mathbf{W}_2}$
+& $\mathbb{R}^{384}$ \\
+wejście & $4\times$ & ukryta & $/4$ & wyjście
 \end{tabular}
 \end{center}
 
@@ -1663,8 +1665,8 @@ każdą operacją, a nie po niej:
 \toprule
 \textbf{Nr} & \textbf{LayerNorm} & \textbf{Co normalizuje?} \\
 \midrule
-1 & Przed Self-Attention & Wejście do $Q, K, V$ -- stabilizuje iloczyny skalarowe $QK^\top$ \\
-2 & Przed MLP & Wejście do warstw liniowych -- stabilizuje GELU \\
+1 & Przed Self-Att. & Stabilizuje $QK^\top$ \\
+2 & Przed MLP & Stabilizuje GELU \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -1698,7 +1700,7 @@ Współczesne ViT (od 2020 r.) stosują LayerNorm \textbf{przed} operacją (\tex
 \midrule
 Stabilność treningu & trudniejsza & \textbf{łatwiejsza} \\
 Potrzeba warm-up? & tak, konieczny & mniej wrażliwy \\
-Przepływ gradientów & gradient przechodzi przez LN & \textbf{gradient ma ścieżkę ``na skróty''} \\
+Gradient & przechodzi przez LN & \textbf{skrót rezydualny} \\
 Standard w ViT? & nie & \textbf{tak} \\
 \bottomrule
 \end{tabular}
@@ -1716,8 +1718,8 @@ bez przechodzenia przez LayerNorm. To zapobiega zanikowi gradientu w głębokich
 \toprule
 & \textbf{BatchNorm} & \textbf{LayerNorm} \\
 \midrule
-Normalizuje po & próbkach w batchu & wymiarach jednego tokenu \\
-Statystyki ($\mu, \sigma^2$) & z batcha ($B$ próbek) & z jednego tokenu ($d$ wymiarów) \\
+Normalizuje & po próbkach & po wymiarach \\
+Statystyki & z batcha ($B$) & z tokenu ($d$) \\
 Zależy od batch size? & tak & \textbf{nie} \\
 Działa przy batch=1? & źle & \textbf{dobrze} \\
 Wymaga running mean/var? & tak (inferencja) & \textbf{nie} \\
@@ -1979,13 +1981,14 @@ Jeśli $\frac{\partial f_\ell}{\partial h} = 0$ & $0^{12} = 0$ (martwa sieć) & 
 Wyobraź sobie \textbf{autostradę} prowadzącą sygnał od wejścia do wyjścia:
 
 \begin{center}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{ccccccc}
-$\mathbf{h}^{(0)}$ & $\xrightarrow{\text{autostrada}}$ & $\mathbf{h}^{(1)}$
-& $\xrightarrow{\text{autostrada}}$ & $\cdots$
-& $\xrightarrow{\text{autostrada}}$ & $\mathbf{h}^{(12)}$ \\[4pt]
+$\mathbf{h}^{(0)}$ & $\xrightarrow{\text{auto}}$ & $\mathbf{h}^{(1)}$
+& $\xrightarrow{\text{auto}}$ & $\cdots$
+& $\xrightarrow{\text{auto}}$ & $\mathbf{h}^{(12)}$ \\[4pt]
 & $\uparrow$ \small{+$\Delta_1$} & & $\uparrow$ \small{+$\Delta_2$} & & $\uparrow$ \small{+$\Delta_{12}$} & \\[2pt]
-& \fbox{\small{Blok 1}} & & \fbox{\small{Blok 2}} & & \fbox{\small{Blok 12}} & \\
-\end{tabular}
+& \fbox{\scriptsize Blok 1} & & \fbox{\scriptsize Blok 2} & & \fbox{\scriptsize Blok 12} & \\
+\end{tabular}}
 \end{center}
 
 \begin{itemize}[leftmargin=2em]
@@ -2049,6 +2052,39 @@ podczas treningu, a po treningu używany do zadań downstream (klasyfikacja, k-N
 \textbf{Pozostałe 196 tokenów} (patche) po 12 warstwach też mają bogate reprezentacje,
 ale \textbf{nie są używane} -- tylko [CLS] jest ``oficjalnym'' wyjściem ViT.
 
+\begin{keyinsight}[Po co nam embedding $\mathbf{z}$?]
+Embedding $\mathbf{z}$ to \textbf{jedyne}, co zostaje z całego ViT po treningu ---
+384 liczby, które kodują sens obrazu. Cała reszta (patche, attention, MLP)
+to tylko \textit{maszyneria} produkująca ten wektor. Po co?
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Downstream}: Po treningu ViT jest \textit{zamrożony}.
+        Nowy obraz wchodzi, $\mathbf{z}$ wychodzi, a mały klasyfikator
+        (linear probe / k-NN) podejmuje decyzję \textit{wyłącznie} na podstawie $\mathbf{z}$.
+        Jeśli $\mathbf{z}$ jest dobry --- klasyfikacja działa.
+        Jeśli $\mathbf{z}$ jest zły --- żaden klasyfikator nie pomoże.
+
+  \item \textbf{Podobieństwo}: Dwa obrazy o podobnym znaczeniu
+        (np.\ dwie klatki z fazy phaco) dadzą wektory $\mathbf{z}$ \textit{bliskie sobie}
+        w przestrzeni $\mathbb{R}^{384}$; obrazy różne --- daleko od siebie.
+        To pozwala np.\ wyszukiwać podobne klatki (retrieval) przez zwykłe
+        liczenie odległości $\|\mathbf{z}_1 - \mathbf{z}_2\|$.
+
+  \item \textbf{SIGReg}: Cały sens regularyzacji SIGReg polega na wymuszeniu,
+        żeby zbiór wektorów $\{\mathbf{z}_1, \ldots, \mathbf{z}_N\}$ z batcha
+        miał rozkład $\mathcal{N}(\mathbf{0}, \mathbf{I})$.
+        Gdyby embeddingi się \textit{skolapsowały} ($\mathbf{z} = \text{const}$),
+        żaden downstream by nie działał.
+        Gdyby były \textit{anizotropowe} (rozciągnięte wzdłuż jednej osi),
+        zadania wymagające separacji w ``ściśniętym'' kierunku byłyby skazane na porażkę.
+        Izotropowy Gauss gwarantuje, że $\mathbf{z}$ jest \textbf{równie użyteczny}
+        w każdym kierunku przestrzeni --- niezależnie od tego, jakie zadanie downstream dostaniemy.
+\end{enumerate}
+
+Krótko: $\mathbf{z}$ to \textbf{produkt końcowy}, a cały LeJEPA + SIGReg istnieje po to,
+żeby ten produkt był jak najlepszej jakości.
+\end{keyinsight}
+
 \subsection{Trening od zera: od szumu do sensownych cech}
 
 Gdy inicjalizujemy ViT od zera (\textbf{random init}):
@@ -2069,7 +2105,7 @@ Gdy inicjalizujemy ViT od zera (\textbf{random init}):
   \item \textbf{Epoki 20--100}: Cechy stają się semantyczne:
   \begin{itemize}
     \item Attention skupia się na istotnych regionach (narzędzie, tęczówka),
-    \item [CLS] zbiera sensowne podsumowanie sceny,
+    \item {[CLS]} zbiera sensowne podsumowanie sceny,
     \item Embedding $\mathbf{z}$ zaczyna \textbf{separować} różne typy scen.
   \end{itemize}
 \end{enumerate}

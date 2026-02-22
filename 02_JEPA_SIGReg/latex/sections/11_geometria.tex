@@ -1,0 +1,28 @@
+\clearpage
+%% ============================================================
+\section{Geometryczna intuicja}
+%% ============================================================
+
+\begin{warningbox}[Dlaczego kolaps jest katastrofalny?]
+Jeśli $f_\theta(\mathbf{x}) = \mathbf{c}$ dla każdego $\mathbf{x}$:
+\begin{itemize}
+  \item Linear probe: $\mathbf{Z} = \mathbf{1}\mathbf{c}^\top \Rightarrow \mathrm{rank}(\mathbf{Z})=1 \Rightarrow$
+        niemożliwa klasyfikacja,
+  \item k-NN: $\|\mathbf{z}_i - \mathbf{z}_j\| = 0 \, \forall i,j \Rightarrow$
+        wszyscy sąsiedzi są identyczni,
+  \item Loss predykcyjny: $\mathcal{L}_{\text{pred}} = 0$ (trywialne minimum!).
+\end{itemize}
+\end{warningbox}
+
+Izotropowy Gauss rozwiązuje ten problem:
+\begin{enumerate}
+  \item Embeddingi \textbf{wypełniają} przestrzeń $\mathbb{R}^K$ równomiernie,
+  \item Żaden kierunek nie jest preferowany $\Rightarrow$ linear probe działa jednakowo dobrze
+        dla \textit{dowolnego} zadania (niezależnie od orientacji granicy decyzyjnej),
+  \item Maksymalna ``pojemność informacyjna'' — entropia Gaussa jest maksymalna
+        wśród rozkładów o ustalonej wariancji:
+        \begin{equation}
+        H(\mathbf{z}) = \frac{K}{2}\ln(2\pi e) \quad \text{(maksimum entropii)}
+        \end{equation}
+\end{enumerate}
+

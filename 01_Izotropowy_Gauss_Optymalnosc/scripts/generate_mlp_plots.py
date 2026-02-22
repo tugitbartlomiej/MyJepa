@@ -1,9 +1,16 @@
 """Generate MLP visualization plots for the LaTeX document."""
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 import matplotlib.patches as mpatches
 from matplotlib.gridspec import GridSpec
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+FIGURES_DIR = os.path.join(SCRIPT_DIR, '..', 'figures')
+PNG_DIR = os.path.join(SCRIPT_DIR, '..', 'png_preview')
+os.makedirs(FIGURES_DIR, exist_ok=True)
+os.makedirs(PNG_DIR, exist_ok=True)
 
 # --- Style ---
 plt.rcParams.update({
@@ -126,8 +133,8 @@ for i, v in enumerate(z3):
             ha='left' if v >= 0 else 'right', va='center', fontsize=9, fontweight='bold')
 
 plt.tight_layout()
-plt.savefig('../figures/mlp_step_by_step.pdf', bbox_inches='tight')
-plt.savefig('../png_preview/mlp_step_by_step.png', dpi=150, bbox_inches='tight')
+plt.savefig(os.path.join(FIGURES_DIR, 'mlp_step_by_step.pdf'), bbox_inches='tight')
+plt.savefig(os.path.join(PNG_DIR, 'mlp_step_by_step.png'), dpi=150, bbox_inches='tight')
 print("Figure 1 saved: mlp_step_by_step")
 plt.close()
 
@@ -179,8 +186,8 @@ ax.text(7.0, 0.3, 'Przy 12 blokach: 12 × 1.18M = 14.2M parametrów (ponad poło
         ha='center', va='center', fontsize=10, style='italic', color='#555555')
 
 plt.tight_layout()
-plt.savefig('../figures/mlp_architecture.pdf', bbox_inches='tight')
-plt.savefig('../png_preview/mlp_architecture.png', dpi=150, bbox_inches='tight')
+plt.savefig(os.path.join(FIGURES_DIR, 'mlp_architecture.pdf'), bbox_inches='tight')
+plt.savefig(os.path.join(PNG_DIR, 'mlp_architecture.png'), dpi=150, bbox_inches='tight')
 print("Figure 2 saved: mlp_architecture")
 plt.close()
 
@@ -238,8 +245,8 @@ ax.annotate('GELU "ściąga"\nujemne do ~0\n(selekcja cech!)',
             arrowprops=dict(arrowstyle='->', color='#0D47A1', lw=1.5))
 
 plt.tight_layout()
-plt.savefig('../figures/mlp_gelu_effect.pdf', bbox_inches='tight')
-plt.savefig('../png_preview/mlp_gelu_effect.png', dpi=150, bbox_inches='tight')
+plt.savefig(os.path.join(FIGURES_DIR, 'mlp_gelu_effect.pdf'), bbox_inches='tight')
+plt.savefig(os.path.join(PNG_DIR, 'mlp_gelu_effect.png'), dpi=150, bbox_inches='tight')
 print("Figure 3 saved: mlp_gelu_effect")
 plt.close()
 

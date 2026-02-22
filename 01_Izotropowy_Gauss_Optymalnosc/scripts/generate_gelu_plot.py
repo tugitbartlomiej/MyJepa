@@ -1,7 +1,14 @@
 """Generate GELU activation function plot comparing with ReLU."""
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+FIGURES_DIR = os.path.join(SCRIPT_DIR, '..', 'figures')
+PNG_DIR = os.path.join(SCRIPT_DIR, '..', 'png_preview')
+os.makedirs(FIGURES_DIR, exist_ok=True)
+os.makedirs(PNG_DIR, exist_ok=True)
 
 x = np.linspace(-4, 4, 1000)
 
@@ -79,6 +86,6 @@ ax2.annotate('Duży pik przy 0:\nGELU "zepchnęła"\nujemne wartości tutaj',
             color='blue', fontweight='bold')
 
 plt.tight_layout()
-plt.savefig('figures/gelu_activation.pdf', bbox_inches='tight')
-plt.savefig('png_preview/gelu_activation.png', dpi=150, bbox_inches='tight')
+plt.savefig(os.path.join(FIGURES_DIR, 'gelu_activation.pdf'), bbox_inches='tight')
+plt.savefig(os.path.join(PNG_DIR, 'gelu_activation.png'), dpi=150, bbox_inches='tight')
 print("GELU plot saved.")

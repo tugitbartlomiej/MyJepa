@@ -942,13 +942,72 @@ Każde ograniczenie ``produkuje'' inny rozkład --- a~my wybraliśmy wariancję
 ]
 Z~Kroku~2 wiemy, że $p(z) \propto e^{-\alpha(z-\mu)^2}$ dla pewnego $\alpha > 0$
 (oznaczyliśmy $\alpha \equiv \lambda_2$).
-Wyznaczamy $\alpha$ z~warunku $\operatorname{Var}[Z] = \sigma^2$.
+Ale jeszcze nie znamy wartości $\alpha$ --- wiemy tylko, że jest dodatnia.
+Wyznaczymy ją z~warunku, że wariancja rozkładu ma wynosić $\sigma^2$.
 
-Bez straty ogólności centrujemy: $\mu = 0$. Potrzebujemy:
+\bigskip
+
+\textbf{Krok po kroku: od wyniku Kroku~2 do wzoru na $\tilde{p}(z)$.}
+
+\medskip
+
+\textbf{(a) Wynik Kroku~2 (równanie~\eqref{eq:maxent_form}):}
 \[
-\sigma^2 = \int_{-\infty}^{\infty} z^2\,\tilde{p}(z)\,dz,
-\qquad \text{gdzie } \tilde{p}(z) = \frac{e^{-\alpha z^2}}{\displaystyle\int_{-\infty}^{\infty} e^{-\alpha t^2}\,dt}
+p(z) = C \cdot e^{-\alpha(z-\mu)^2}
 \]
+gdzie $C = e^{-1-\lambda_0}$ to jakaś stała (na razie nie wiemy jaka).
+
+\medskip
+
+\textbf{(b) Centrujemy: $\mu = 0$.} Bez straty ogólności --- przesunięcie o~$\mu$
+nie zmienia kształtu rozkładu, tylko go przesuwa. Po wycentrowaniu:
+\[
+p(z) = C \cdot e^{-\alpha z^2}
+\]
+
+\medskip
+
+\textbf{(c) Wyznaczamy $C$ z~normalizacji.}
+Rozkład prawdopodobieństwa musi spełniać $\int_{-\infty}^{\infty} p(z)\,dz = 1$.
+Wstawiamy naszą formułę:
+\[
+\int_{-\infty}^{\infty} C \cdot e^{-\alpha z^2}\,dz = 1
+\quad\Longrightarrow\quad
+C = \frac{1}{\displaystyle\int_{-\infty}^{\infty} e^{-\alpha z^2}\,dz}
+\]
+$C$ to po prostu ``jeden podzielony przez całkę'' --- tak dobrana,
+żeby całość scałkowała się do~$1$.
+
+\medskip
+
+\textbf{(d) Wstawiamy $C$ z~powrotem:}
+\[
+\tilde{p}(z) = C \cdot e^{-\alpha z^2}
+= \frac{e^{-\alpha z^2}}{\displaystyle\int_{-\infty}^{\infty} e^{-\alpha t^2}\,dt}
+\]
+(W~mianowniku piszemy $t$ zamiast $z$, bo te dwie litery pełnią \textit{różne role}:
+$z$ w~liczniku to argument funkcji --- wartość, dla której obliczamy $\tilde{p}(z)$.
+Natomiast $t$ w~mianowniku to \textbf{zmienna całkowania} --- ``przebiega'' od $-\infty$
+do $+\infty$ i~znika po scałkowaniu. Mianownik to po prostu jedna liczba (stała),
+niezależna od~$z$.)
+
+To jest ten sam rozkład co w~Kroku~2 --- tylko zapisany z~\textit{jawną} stałą
+normalizacyjną zamiast symbolu $\propto$.
+
+\bigskip
+
+\textbf{(e) Teraz wyznaczamy $\alpha$.}
+Wiemy, że wariancja ma wynosić $\sigma^2$:
+\[
+\sigma^2 = \operatorname{Var}[Z]
+= \int_{-\infty}^{\infty} z^2\,\tilde{p}(z)\,dz
+\]
+
+\textit{Uwaga o~notacji:} W~probabilistyce duże $Z$ oznacza \textbf{zmienną losową}
+(abstrakcyjny obiekt --- ``coś, co losuje wartości''), a~małe $z$ oznacza
+\textbf{konkretną wartość} (realizację), którą $Z$ może przyjąć.
+Dlatego piszemy $\operatorname{Var}[Z]$ (wariancja zmiennej losowej),
+ale pod całką $z^2\,\tilde{p}(z)\,dz$ (całkujemy po konkretnych wartościach $z$).
 
 \textbf{Problem:} musimy obliczyć $\int_{-\infty}^{\infty} z^2\,e^{-\alpha z^2}\,dz$.
 To trudna całka --- $z^2$ razy eksponenta. Ale jest sprytny trik.
@@ -971,10 +1030,30 @@ Popatrzmy, co się stanie, gdy weźmiemy pochodną $I(\alpha)$ po parametrze $\a
 \label{eq:diff_under_integral}
 \end{align}
 
-Liczymy pochodną eksponenty po~$\alpha$ (traktujemy $z$ jako stałą!):
+Liczymy pochodną eksponenty po~$\alpha$ (traktujemy $z$ jako stałą):
 \[
 \frac{\partial}{\partial\alpha}\,e^{-\alpha z^2} = -z^2\,e^{-\alpha z^2}
 \]
+
+\textbf{Dlaczego $z$ traktujemy jako stałą?}
+Bo liczymy pochodną \textit{cząstkową} po~$\alpha$ --- symbol $\partial/\partial\alpha$
+oznacza: ``zmień tylko $\alpha$, wszystko inne trzymaj w~miejscu''.
+Wyrażenie $e^{-\alpha z^2}$ zależy od dwóch rzeczy: $\alpha$ i~$z$.
+Pochodna cząstkowa po~$\alpha$ ``widzi'' tylko $\alpha$ jako zmienną,
+a~$z^2$ jest dla niej taką samą stałą jak np.\ liczba~$7$.
+
+Analogia: jeśli masz $f(\alpha, z) = 3\alpha z^2$, to:
+\begin{itemize}[leftmargin=2em]
+  \item $\partial f/\partial\alpha = 3z^2$
+        \quad (``$3z^2$ razy $\alpha$'' $\to$ pochodna po~$\alpha$ to~$3z^2$),
+  \item $\partial f/\partial z = 6\alpha z$
+        \quad (teraz $\alpha$ byłoby stałą, a~$z$ zmienną).
+\end{itemize}
+
+Tu jest tak samo --- w~$e^{-\alpha z^2}$ wykładnik to $f(\alpha) = -\alpha \cdot z^2$
+(liniowa funkcja $\alpha$, bo $z^2$ to ``stały współczynnik''),
+więc $\partial f/\partial\alpha = -z^2$, i~reguła łańcuchowa daje
+$\frac{\partial}{\partial\alpha} e^{f(\alpha)} = f'(\alpha)\cdot e^{f(\alpha)} = -z^2\,e^{-\alpha z^2}$.
 
 Więc:
 \begin{equation}
@@ -1032,25 +1111,99 @@ Wstawiamy do~\eqref{eq:trick_result}:
 
 \textbf{Wyznaczamy $\alpha$.}
 
-Wariancja to stosunek dwóch całek (licznik / mianownik):
+\medskip
+
+\textbf{Krok A: Zapisujemy wariancję jako stosunek dwóch całek.}
+
+Z~punktu~(e) wiemy, że $\sigma^2 = \int z^2\,\tilde{p}(z)\,dz$.
+Wstawiamy $\tilde{p}(z) = \dfrac{e^{-\alpha z^2}}{\int e^{-\alpha t^2}\,dt}$
+(wzór z~punktu~(d)):
 \[
 \sigma^2
-= \frac{\int z^2\,e^{-\alpha z^2}\,dz}{\int e^{-\alpha z^2}\,dz}
+= \int_{-\infty}^{\infty} z^2 \cdot \frac{e^{-\alpha z^2}}{\displaystyle\int_{-\infty}^{\infty} e^{-\alpha t^2}\,dt}\;dz
+= \frac{\displaystyle\int_{-\infty}^{\infty} z^2\,e^{-\alpha z^2}\,dz}{\displaystyle\int_{-\infty}^{\infty} e^{-\alpha t^2}\,dt}
+\]
+(Mianownik nie zależy od~$z$, więc można go wyciągnąć przed całkę w~liczniku.)
+
+\medskip
+
+\textbf{Krok B: Wstawiamy znane wartości obu całek.}
+
+Licznik obliczyliśmy w~\eqref{eq:deriv_trick}:
+\[
+\int_{-\infty}^{\infty} z^2\,e^{-\alpha z^2}\,dz
+= \frac{1}{2}\sqrt{\frac{\pi}{\alpha^3}}
+\]
+Mianownik to całka Gaussowska~\eqref{eq:gauss_integral_alpha}:
+\[
+\int_{-\infty}^{\infty} e^{-\alpha t^2}\,dt
+= \sqrt{\frac{\pi}{\alpha}}
+\]
+Wstawiamy:
+\[
+\sigma^2
 = \frac{\tfrac{1}{2}\sqrt{\pi/\alpha^3}}{\sqrt{\pi/\alpha}}
 \]
 
-Upraszczamy --- $\sqrt{\pi}$ skraca się:
+\medskip
+
+\textbf{Krok C: Upraszczamy ułamek --- rozpisujemy pierwiastki.}
+
+Przepisujemy oba pierwiastki jako potęgi, żeby łatwiej się skracało:
+\[
+\sqrt{\frac{\pi}{\alpha^3}} = \frac{\sqrt{\pi}}{\sqrt{\alpha^3}}
+= \frac{\sqrt{\pi}}{\alpha^{3/2}},
+\qquad
+\sqrt{\frac{\pi}{\alpha}} = \frac{\sqrt{\pi}}{\sqrt{\alpha}}
+= \frac{\sqrt{\pi}}{\alpha^{1/2}}
+\]
+Wstawiamy:
 \[
 \sigma^2
-= \frac{\tfrac{1}{2}\,\alpha^{-3/2}}{\alpha^{-1/2}}
-= \frac{1}{2}\cdot\alpha^{-3/2}\cdot\alpha^{1/2}
-= \frac{1}{2}\cdot\alpha^{-1}
-= \frac{1}{2\alpha}
+= \frac{\tfrac{1}{2}\cdot\dfrac{\sqrt{\pi}}{\alpha^{3/2}}}{\dfrac{\sqrt{\pi}}{\alpha^{1/2}}}
 \]
 
+\medskip
+
+\textbf{Krok D: Skracamy $\sqrt{\pi}$.}
+
+$\sqrt{\pi}$ występuje i~w~liczniku, i~w~mianowniku --- skraca się:
+\[
+\sigma^2
+= \frac{1}{2}\cdot\frac{\alpha^{1/2}}{\alpha^{3/2}}
+\]
+(Dzielenie ułamków: $\dfrac{a/b}{c/d} = \dfrac{a}{b}\cdot\dfrac{d}{c}$,
+więc $\dfrac{\sqrt{\pi}/\alpha^{3/2}}{\sqrt{\pi}/\alpha^{1/2}}
+= \dfrac{\sqrt{\pi}}{\alpha^{3/2}}\cdot\dfrac{\alpha^{1/2}}{\sqrt{\pi}}
+= \dfrac{\alpha^{1/2}}{\alpha^{3/2}}$.)
+
+\medskip
+
+\textbf{Krok E: Upraszczamy potęgi $\alpha$.}
+
+Reguła: $\dfrac{\alpha^a}{\alpha^b} = \alpha^{a-b}$. Tutaj $a = \tfrac{1}{2}$, $b = \tfrac{3}{2}$:
+\[
+\frac{\alpha^{1/2}}{\alpha^{3/2}} = \alpha^{1/2 - 3/2} = \alpha^{-1} = \frac{1}{\alpha}
+\]
+Więc:
+\[
+\sigma^2 = \frac{1}{2}\cdot\frac{1}{\alpha} = \frac{1}{2\alpha}
+\]
+
+\medskip
+
+\textbf{Krok F: Rozwiązujemy równanie na $\alpha$.}
+
+Mamy $\sigma^2 = \dfrac{1}{2\alpha}$. Mnożymy obie strony przez $2\alpha$:
+\[
+2\alpha\,\sigma^2 = 1
+\]
+Dzielimy obie strony przez $2\sigma^2$:
 \[
 \boxed{\alpha = \frac{1}{2\sigma^2}}
 \]
+
+\bigskip
 
 \textit{Stąd dwójka w~mianowniku!}
 Gdybyśmy napisali $e^{-(z-\mu)^2/\sigma^2}$ (bez dwójki), parametr $\sigma^2$ we wzorze
@@ -1094,7 +1247,22 @@ I^2 = 2\pi\sigma^2 \int_0^{\infty} e^{-u}\,du = 2\pi\sigma^2
 I = \sqrt{2\pi\sigma^2}
 \]
 
-Stąd stała normalizacyjna:
+\textbf{Wyznaczamy stałą normalizacyjną $C$.}
+
+Z~Kroku~3 (punkt~(b)--(c)) wiemy, że nasz rozkład ma postać:
+\[
+p(z) = C \cdot e^{-z^2/(2\sigma^2)}
+\]
+(po wstawieniu $\alpha = 1/(2\sigma^2)$ z~Kroku~3).
+Warunek normalizacji wymaga $\int_{-\infty}^{\infty} p(z)\,dz = 1$, czyli:
+\[
+C \cdot \underbrace{\int_{-\infty}^{\infty} e^{-z^2/(2\sigma^2)}\,dz}_{= \, I} = 1
+\]
+Właśnie obliczyliśmy, że $I = \sqrt{2\pi\sigma^2}$. Dzielimy obie strony przez~$I$:
+\[
+C = \frac{1}{I}
+\]
+Wstawiamy wartość $I$:
 \begin{equation}
 \boxed{C = \frac{1}{I} = \frac{1}{\sqrt{2\pi\sigma^2}}}
 \label{eq:norm_const}
@@ -1213,7 +1381,7 @@ Niebieska: wynik po przeskalowaniu stałą $1/\sqrt{2\pi}$.}
 % --- 2D ---
 \subsection{Wyprowadzenie: Gauss w 2D}
 
-Mamy wektor $\mathbf{z} = \begin{pmatrix} z_1 \\ z_2 \end{pmatrix} \in \mathbb{R}^2$.
+Mamy wektor $\mathbf{z} = \begin{bmatrix} z_1 \\ z_2 \end{bmatrix} \in \mathbb{R}^2$.
 Chcemy znaleźć $p(z_1, z_2)$.
 
 \subsubsection{Krok 1: Zakładamy niezależność}
@@ -1255,14 +1423,14 @@ Właściwość eksponenty: $e^a \cdot e^b = e^{a+b}$, więc:
 
 Definiujemy:
 \begin{equation}
-\boldsymbol{\mu} = \begin{pmatrix} \mu_1 \\ \mu_2 \end{pmatrix}, \qquad
-\boldsymbol{\Sigma} = \begin{pmatrix} \sigma_1^2 & 0 \\ 0 & \sigma_2^2 \end{pmatrix}
+\boldsymbol{\mu} = \begin{bmatrix} \mu_1 \\ \mu_2 \end{bmatrix}, \qquad
+\boldsymbol{\Sigma} = \begin{bmatrix} \sigma_1^2 & 0 \\ 0 & \sigma_2^2 \end{bmatrix}
 \quad \text{(macierz kowariancji, diagonalna bo niezależne)}
 \end{equation}
 
 Wtedy:
 \begin{equation}
-\boldsymbol{\Sigma}^{-1} = \begin{pmatrix} 1/\sigma_1^2 & 0 \\ 0 & 1/\sigma_2^2 \end{pmatrix},
+\boldsymbol{\Sigma}^{-1} = \begin{bmatrix} 1/\sigma_1^2 & 0 \\ 0 & 1/\sigma_2^2 \end{bmatrix},
 \qquad
 \det(\boldsymbol{\Sigma}) = \sigma_1^2 \cdot \sigma_2^2
 \end{equation}
@@ -1270,12 +1438,96 @@ Wtedy:
 Wykładnik możemy zapisać jako \textbf{formę kwadratową}:
 \begin{align}
 \frac{(z_1-\mu_1)^2}{\sigma_1^2} + \frac{(z_2-\mu_2)^2}{\sigma_2^2}
-&= \begin{pmatrix} z_1-\mu_1 & z_2-\mu_2 \end{pmatrix}
-\begin{pmatrix} 1/\sigma_1^2 & 0 \\ 0 & 1/\sigma_2^2 \end{pmatrix}
-\begin{pmatrix} z_1-\mu_1 \\ z_2-\mu_2 \end{pmatrix} \nonumber\\
+&= \underbrace{\begin{bmatrix} z_1-\mu_1 & z_2-\mu_2 \end{bmatrix}}_{\text{wiersz }(1 \times 2)}
+\underbrace{\begin{bmatrix} 1/\sigma_1^2 & 0 \\ 0 & 1/\sigma_2^2 \end{bmatrix}}_{\text{macierz }(2 \times 2)}
+\underbrace{\begin{bmatrix} z_1-\mu_1 \\ z_2-\mu_2 \end{bmatrix}}_{\text{kolumna }(2 \times 1)} \nonumber\\
 &= (\mathbf{z} - \boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1} (\mathbf{z} - \boldsymbol{\mu})
 \label{eq:quadratic}
 \end{align}
+
+\textbf{Dlaczego taki układ macierzy?} Rozpiszmy mnożenie krok po kroku.
+
+\medskip
+
+\textbf{Krok 1: Wektor $\mathbf{z} - \boldsymbol{\mu}$ to kolumna.}
+Wektor w~algebrze liniowej to domyślnie \textit{kolumna} (pionowy):
+\[
+\mathbf{z} - \boldsymbol{\mu}
+= \begin{bmatrix} z_1 \\ z_2 \end{bmatrix} - \begin{bmatrix} \mu_1 \\ \mu_2 \end{bmatrix}
+= \begin{bmatrix} z_1 - \mu_1 \\ z_2 - \mu_2 \end{bmatrix}
+\qquad (2 \times 1)
+\]
+
+\textbf{Krok 2: Transponowanie $(\cdot)^\top$ zamienia kolumnę na wiersz.}
+Symbol $\top$ to \textbf{transpozycja} --- ``obrócenie'' wektora:
+\[
+(\mathbf{z} - \boldsymbol{\mu})^\top
+= \begin{bmatrix} z_1 - \mu_1 \\ z_2 - \mu_2 \end{bmatrix}^{\!\top}
+= \begin{bmatrix} z_1 - \mu_1 & z_2 - \mu_2 \end{bmatrix}
+\qquad (1 \times 2)
+\]
+
+\textbf{Krok 3: Mnożymy --- od lewej do prawej.}
+
+Wymiary muszą się ``zazębiać'' jak zamek błyskawiczny:
+\[
+\underbrace{(1 \times \mathbf{2})}_{\text{wiersz}}
+\;\cdot\;
+\underbrace{(\mathbf{2} \times \mathbf{2})}_{\Sigma^{-1}}
+\;\cdot\;
+\underbrace{(\mathbf{2} \times 1)}_{\text{kolumna}}
+\;=\;
+(1 \times 1)
+\;=\;
+\text{skalar (jedna liczba)}
+\]
+Zewnętrzne wymiary ($1 \times \ldots \times 1$) dają wynik $1 \times 1$ --- jedną liczbę.
+Dokładnie tak jak chcemy: wykładnik Gaussa to \textit{jedna liczba}, nie macierz.
+
+\medskip
+
+\textbf{Krok 4: Liczymy iloczyn --- najpierw środek $\times$ prawa kolumna.}
+\[
+\begin{bmatrix} 1/\sigma_1^2 & 0 \\ 0 & 1/\sigma_2^2 \end{bmatrix}
+\begin{bmatrix} z_1 - \mu_1 \\ z_2 - \mu_2 \end{bmatrix}
+= \begin{bmatrix}
+\frac{1}{\sigma_1^2} \cdot (z_1 - \mu_1) + 0 \cdot (z_2 - \mu_2) \\[4pt]
+0 \cdot (z_1 - \mu_1) + \frac{1}{\sigma_2^2} \cdot (z_2 - \mu_2)
+\end{bmatrix}
+= \begin{bmatrix} (z_1 - \mu_1)/\sigma_1^2 \\ (z_2 - \mu_2)/\sigma_2^2 \end{bmatrix}
+\]
+(Macierz diagonalna po prostu dzieli każdy element przez ``swoją'' wariancję.)
+
+\medskip
+
+\textbf{Krok 5: Mnożymy wiersz $\times$ wynik z~Kroku~4.}
+\[
+\begin{bmatrix} z_1 - \mu_1 & z_2 - \mu_2 \end{bmatrix}
+\begin{bmatrix} (z_1 - \mu_1)/\sigma_1^2 \\ (z_2 - \mu_2)/\sigma_2^2 \end{bmatrix}
+= (z_1 - \mu_1) \cdot \frac{z_1 - \mu_1}{\sigma_1^2}
++ (z_2 - \mu_2) \cdot \frac{z_2 - \mu_2}{\sigma_2^2}
+\]
+\[
+= \frac{(z_1 - \mu_1)^2}{\sigma_1^2} + \frac{(z_2 - \mu_2)^2}{\sigma_2^2}
+\]
+
+Dostaliśmy dokładnie to, co stoi po lewej stronie równania --- sumę kwadratów
+ważonych wariancjami. Zapis macierzowy to tylko \textbf{kompaktowy sposób}
+zapisania tej samej sumy, który działa dla dowolnego wymiaru $K$
+(bez wypisywania $K$ ułamków).
+
+\begin{keyinsight}[Dlaczego akurat wiersz $\times$ macierz $\times$ kolumna?]
+Chcemy dostać \textbf{jedną liczbę} (skalar) z~dwóch wektorów i~macierzy.
+Jedyny układ wymiarów, który to daje, to:
+\[
+(1 \times K) \cdot (K \times K) \cdot (K \times 1) = (1 \times 1)
+\]
+Dlatego \textit{musimy} transponować lewy wektor (kolumna $\to$ wiersz),
+żeby wymiary się zgadzały. Gdybyśmy tego nie zrobili:
+\[
+(K \times 1) \cdot (K \times K) \cdot (K \times 1) = \text{błąd! wymiary się nie zgadzają}
+\]
+\end{keyinsight}
 
 \subsubsection{Krok 5: Wynik — Gauss 2D (niezależne)}
 
@@ -1298,10 +1550,10 @@ p(\mathbf{z}) = p(z_1, z_2) =
 Co jeśli $z_1$ i $z_2$ \textit{nie} są niezależne? Wtedy macierz kowariancji ma elementy pozadiagonalne:
 
 \begin{equation}
-\boldsymbol{\Sigma} = \begin{pmatrix}
+\boldsymbol{\Sigma} = \begin{bmatrix}
 \sigma_1^2 & \rho\,\sigma_1\sigma_2 \\
 \rho\,\sigma_1\sigma_2 & \sigma_2^2
-\end{pmatrix}
+\end{bmatrix}
 \end{equation}
 
 gdzie $\rho \in [-1,1]$ to \textbf{współczynnik korelacji} Pearsona.
@@ -1333,10 +1585,10 @@ więc $\sqrt{\det(\boldsymbol{\Sigma})} = \sigma_1\sigma_2$ — zgadza się z \e
 
 \begin{align}
 \boldsymbol{\Sigma}^{-1} &= \frac{1}{\sigma_1^2\sigma_2^2(1-\rho^2)}
-\begin{pmatrix}
+\begin{bmatrix}
 \sigma_2^2 & -\rho\,\sigma_1\sigma_2 \\
 -\rho\,\sigma_1\sigma_2 & \sigma_1^2
-\end{pmatrix}
+\end{bmatrix}
 \label{eq:sigma_inv_2d}
 \end{align}
 
@@ -1381,18 +1633,18 @@ Wartości własne $\lambda_1, \lambda_2$ określają długości półosi.}
 % --- 3D ---
 \subsection{Wyprowadzenie: Gauss w 3D}
 
-Teraz $\mathbf{z} = \begin{pmatrix} z_1 \\ z_2 \\ z_3 \end{pmatrix} \in \mathbb{R}^3$.
+Teraz $\mathbf{z} = \begin{bmatrix} z_1 \\ z_2 \\ z_3 \end{bmatrix} \in \mathbb{R}^3$.
 Procedura jest identyczna!
 
 \subsubsection{Krok 1: Definiujemy parametry}
 
 \begin{equation}
-\boldsymbol{\mu} = \begin{pmatrix} \mu_1 \\ \mu_2 \\ \mu_3 \end{pmatrix}, \qquad
-\boldsymbol{\Sigma} = \begin{pmatrix}
+\boldsymbol{\mu} = \begin{bmatrix} \mu_1 \\ \mu_2 \\ \mu_3 \end{bmatrix}, \qquad
+\boldsymbol{\Sigma} = \begin{bmatrix}
 \sigma_1^2 & \sigma_{12} & \sigma_{13} \\
 \sigma_{12} & \sigma_2^2 & \sigma_{23} \\
 \sigma_{13} & \sigma_{23} & \sigma_3^2
-\end{pmatrix}
+\end{bmatrix}
 \end{equation}
 
 gdzie $\sigma_{ij} = \mathrm{Cov}(z_i, z_j)$ to kowariancje (korelacje przeskalowane).
@@ -1414,17 +1666,17 @@ p(\mathbf{z}) =
 \subsubsection{Krok 3: Przypadek niezależny ($\boldsymbol{\Sigma}$ diagonalna)}
 
 \begin{equation}
-\boldsymbol{\Sigma} = \begin{pmatrix}
+\boldsymbol{\Sigma} = \begin{bmatrix}
 \sigma_1^2 & 0 & 0 \\
 0 & \sigma_2^2 & 0 \\
 0 & 0 & \sigma_3^2
-\end{pmatrix}
+\end{bmatrix}
 \;\Rightarrow\;
-\boldsymbol{\Sigma}^{-1} = \begin{pmatrix}
+\boldsymbol{\Sigma}^{-1} = \begin{bmatrix}
 1/\sigma_1^2 & 0 & 0 \\
 0 & 1/\sigma_2^2 & 0 \\
 0 & 0 & 1/\sigma_3^2
-\end{pmatrix}
+\end{bmatrix}
 \end{equation}
 
 Wtedy $\det(\boldsymbol{\Sigma}) = \sigma_1^2\,\sigma_2^2\,\sigma_3^2$ i:
@@ -1471,11 +1723,30 @@ $\|\mathbf{z}\|^2 = z_1^2 + z_2^2 + z_3^2 = r^2$.
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{figures/gauss_3d_surfaces.pdf}
-\caption{Powierzchnie gęstości 3D (wyświetlamy $p(z_1,z_2)$ dla 2 zmiennych).
+\caption{Powierzchnie gęstości (wyświetlamy $p(z_1,z_2)$ dla 2 zmiennych).
 \textbf{Lewo}: izotropowy — symetryczny ``dzwonek''.
-\textbf{Prawo}: anizotropowy ($\sigma_1^2=3, \sigma_2^2=0.3$) — wydłużony grzbiet.
-W 3D pełnym izolinie to sfery (izotropowy) vs.\ elipsoidy (anizotropowy).}
+\textbf{Prawo}: anizotropowy ($\sigma_1^2=3, \sigma_2^2=0.3$) — wydłużony grzbiet.}
 \label{fig:gauss3d}
+\end{figure}
+
+Ale powyższy wykres pokazuje tylko \textit{dwie} zmienne ($z_1, z_2$).
+Jak wygląda rozkład Gaussa naprawdę w~3D, czyli z~\textbf{trzema} zmiennymi ($z_1, z_2, z_3$)?
+
+Nie da się narysować ``dzwonka'' (bo oś gęstości byłaby czwartym wymiarem!),
+ale możemy narysować \textbf{izopowierzchnie} --- powierzchnie, na których
+gęstość $p(\mathbf{z})$ jest stała.
+Dla izotropowego Gaussa to \textbf{sfery}, dla anizotropowego --- \textbf{elipsoidy}:
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/gauss_3d_isosurfaces.pdf}
+\caption{Izopowierzchnie gęstości $p(z_1, z_2, z_3) = \mathrm{const}$ w~pełnym 3D.
+\textbf{Lewo}: izotropowy ($\boldsymbol{\Sigma} = \mathbf{I}_3$)
+--- izopowierzchnie to \textbf{sfery} (rozrzut identyczny we wszystkich kierunkach).
+\textbf{Prawo}: anizotropowy ($\sigma_1^2 = 3$, $\sigma_2^2 = 0.3$, $\sigma_3^2 = 1$)
+--- izopowierzchnie to \textbf{elipsoidy} (rozciągnięte wzdłuż $z_1$, ściśnięte wzdłuż $z_2$).
+Ciemniejsza powłoka = $1\sigma$ (68\% punktów), jaśniejsza = $2\sigma$ (95\% punktów).}
+\label{fig:gauss3d_isosurfaces}
 \end{figure}
 
 % --- General K-D ---

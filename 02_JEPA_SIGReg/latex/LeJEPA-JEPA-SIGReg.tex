@@ -18,7 +18,13 @@
 \usepackage{enumitem}
 \usepackage{caption}
 \usepackage{float}
-\usepackage{placeins}  % for \FloatBarrier
+\usepackage{placeins}
+\usepackage{tikz}
+\usetikzlibrary{decorations.markings}
+
+% Figures: sections reference "figures/X.pdf"
+% Search local figures first, then part 1's figures
+\graphicspath{{./}{../../01_Izotropowy_Gauss_Optymalnosc/}}
 
 % Theorem environments
 \theoremstyle{definition}
@@ -52,46 +58,48 @@
   breakable,
 }
 
+% Float settings
+\setlength{\textfloatsep}{10pt plus 2pt minus 4pt}
+\setlength{\floatsep}{8pt plus 2pt minus 4pt}
+\setlength{\intextsep}{8pt plus 2pt minus 4pt}
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.95}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.9}
+\setcounter{topnumber}{4}
+\setcounter{bottomnumber}{4}
+\setcounter{totalnumber}{8}
+
+% Continue section numbering from part 1 (sections 1-6)
+\setcounter{section}{6}
+
 \title{%
-  \textbf{Dlaczego izotropowy rozkład Gaussa jest optymalny\\
-  dla embeddingów w LeJEPA?}\\[0.5em]
-  \large Teoria i intuicja z artykułu Balestriero \& LeCun (2025)
+  \textbf{LeJEPA: JEPA i SIGReg}\\[0.3em]
+  \large Część 2: Izotropowy Gauss, optymalność, regularyzacja\\[0.3em]
+  \normalsize Kontynuacja \textit{LeJEPA-Wyjasnienie.pdf}
 }
 \author{Notatki do artykułu \textit{LeJEPA: Provable and Scalable SSL Without the Heuristics}}
 \date{\today}
 
-\setlength{\textfloatsep}{10pt plus 2pt minus 4pt}     % odstęp tekst-figura (góra/dół)
-\setlength{\floatsep}{8pt plus 2pt minus 4pt}         % odstęp między figurami
-\setlength{\intextsep}{8pt plus 2pt minus 4pt}        % odstęp dla figur [h]
-\renewcommand{\topfraction}{0.95}      % max 95% strony na figury u góry
-\renewcommand{\bottomfraction}{0.95}   % max 95% strony na figury u dołu
-\renewcommand{\textfraction}{0.05}     % min 5% strony na tekst
-\renewcommand{\floatpagefraction}{0.9} % min 90% wypełnienia strony z samymi figurami
-\setcounter{topnumber}{4}              % max 4 figury u góry strony
-\setcounter{bottomnumber}{4}           % max 4 figury u dołu strony
-\setcounter{totalnumber}{8}            % max 8 figur na stronie
-
 \begin{document}
-\raggedbottom  % nie rozciągaj pustych przestrzeni na stronach
+\raggedbottom
 \maketitle
 
 \begin{abstract}
-Ten dokument wyjaśnia kluczowy wynik teoretyczny artykułu LeJEPA:
-\textbf{izotropowy rozkład Gaussa} $\mathcal{N}(\mathbf{0}, \mathbf{I})$
-jest \textbf{jedynym optymalnym rozkładem} embeddingów, który minimalizuje
-ryzyko downstream dla \textit{dowolnego} zadania klasyfikacji/regresji.
-Przedstawiamy dowody dla linear probe i nieliniowych metod (k-NN, kernel),
-intuicję geometryczną oraz wizualizacje.
+Część~2 notatek do artykułu LeJEPA.
+W~części~1 (\textit{LeJEPA-Wyjasnienie.pdf}) wyjaśniliśmy:
+ogólny obraz (ViT + LeJEPA + SIGReg), notację, architekturę ViT,
+teorię wariancji oraz wyprowadzenie rozkładu Gaussa od 1D do 3D.
+
+W~tej części przechodzimy do sedna:
+\textbf{dlaczego} izotropowy Gauss $\mathcal{N}(\mathbf{0}, \mathbf{I})$
+jest optymalny, \textbf{jak} SIGReg go wymusza,
+jak wygląda \textbf{pełny loss} LeJEPA
+i jaka jest \textbf{geometryczna intuicja} za tym wszystkim.
 \end{abstract}
 
 \tableofcontents
 
-\input{sections/01_ogolny_obraz}
-\input{sections/02_notacja}
-\input{sections/03_vit}
-\input{sections/04_wariancja}
-\input{sections/05_gauss_1d_3d}
-\input{sections/06_kontekst_jepa}
 \input{sections/07_izotropowy_gauss}
 \input{sections/08_optymalnosc}
 \input{sections/09_sigreg}

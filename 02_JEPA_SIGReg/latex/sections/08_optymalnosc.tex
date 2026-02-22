@@ -1,0 +1,111 @@
+\clearpage
+%% ============================================================
+\section{Dlaczego izotropowy Gauss jest optymalny?}
+\label{sec:why}
+%% ============================================================
+
+\subsection{Przypadek 1: Linear probe (regresja liniowa)}
+
+Standardowa ewaluacja foundation modeli: zamrażamy encoder, trenujemy liniowy klasyfikator
+na embeddingach.
+
+\begin{definition}[Linear probe — OLS z regularyzacją Tikhonova]
+\begin{equation}
+\hat{\beta} = \arg\min_{\beta \in \mathbb{R}^K}
+\|\mathbf{y} - \mathbf{Z}\beta\|_2^2 + \lambda\|\beta\|_2^2
+\label{eq:ols}
+\end{equation}
+gdzie $\mathbf{Z} \in \mathbb{R}^{N \times K}$ to macierz embeddingów,
+$\mathbf{y} \in \mathbb{R}^N$ to etykiety, $\lambda \geq 0$ to siła regularyzacji.
+\end{definition}
+
+Rozważmy dwa rozkłady embeddingów o \textit{tej samej energii} (suma wariancji):
+\begin{align}
+\mathbf{Z}_{\text{iso}} &: \quad \mathrm{Cov}(\mathbf{z}) = \mathbf{I}_K
+\quad (\text{wartości własne: } 1, 1, \ldots, 1) \\
+\mathbf{Z}_{\text{aniso}} &: \quad \mathrm{Cov}(\mathbf{z}) = \mathrm{diag}(\lambda_1, \ldots, \lambda_K)
+\quad (\text{co najmniej dwie różne } \lambda_k)
+\end{align}
+Oba rozkłady mają tę samą sumaryczną wariancję: $\sum_k \lambda_k = K$.
+
+\begin{lemma}[Anizotropia wzmacnia bias — Lemat 1 w artykule]
+\label{lem:bias}
+Gdy $\lambda_K > \lambda_1$, \textbf{zawsze istnieje} zadanie downstream (etykiety $\mathbf{y}$),
+dla którego $\mathbf{Z}_{\text{aniso}}$ daje \textbf{wyższy bias} estymatora $\hat{\beta}$
+niż $\mathbf{Z}_{\text{iso}}$, przy $\lambda > 0$.
+\end{lemma}
+
+\textit{Intuicja}: Regularyzacja Tikhonova ``obcina'' komponenty proporcjonalnie do $\frac{\lambda_k}{\lambda_k + \lambda}$.
+Gdy $\lambda_k$ są nierówne, małe $\lambda_k$ są obcinane agresywniej $\Rightarrow$ informacja w tych kierunkach jest tracona.
+
+\begin{lemma}[Anizotropia wzmacnia wariancję — Lemat 2 w artykule]
+\label{lem:var}
+Wariancja sumaryczna estymatora jest większa dla rozkładu anizotropowego:
+\begin{equation}
+\mathrm{tr}\!\left(\mathrm{Var}(\hat{\beta}_{\text{aniso}})\right)
+> \mathrm{tr}\!\left(\mathrm{Var}(\hat{\beta}_{\text{iso}})\right)
+\end{equation}
+przy $\lambda = 0$ (OLS bez regularyzacji).
+\end{lemma}
+
+\textit{Intuicja}: Kierunki z małą wariancją ($\lambda_k \ll 1$) mają mało próbek ``pokrywających'' ten wymiar,
+więc estymacja $\hat{\beta}_k$ jest niestabilna.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/bias_variance_illustration.pdf}
+\caption{Ilustracja Lematu 1 i 2.
+Czarna linia: prawdziwa granica decyzyjna.
+Zielone linie: granice nauczone z losowych podzbiorów danych.
+\textbf{Lewo}: izotropowe embeddingi $\Rightarrow$ nauczone granice blisko prawdziwej (niski bias)
+i mało rozproszone (niska wariancja).
+\textbf{Prawo}: anizotropowe $\Rightarrow$ granice przesunięte (wysoki bias)
+i mocno rozproszone (wysoka wariancja).}
+\label{fig:bias_var}
+\end{figure}
+
+\subsection{Przypadek 2: Nieliniowe metody (k-NN, kernel)}
+
+Dla bardziej elastycznej ewaluacji (nie tylko linear probe), artykuł analizuje:
+
+\begin{definition}[k-NN predykcja]
+\begin{equation}
+\hat{y}(\mathbf{q}) = \frac{1}{|\mathcal{N}_{r_0}(\mathbf{q})|}
+\sum_{n \in \mathcal{N}_{r_0}(\mathbf{q})} y_n,
+\quad \text{gdzie } \mathcal{N}_{r_0}(\mathbf{q}) = \{n : \|\mathbf{z}_n - \mathbf{q}\| \leq r_0\}
+\end{equation}
+\end{definition}
+
+\begin{definition}[Kernel predykcja]
+\begin{equation}
+\hat{y}(\mathbf{q}) = \frac{\sum_{n=1}^N K_h(\mathbf{q} - \mathbf{z}_n) y_n}
+{\sum_{n=1}^N K_h(\mathbf{q} - \mathbf{z}_n)}
+\end{equation}
+\end{definition}
+
+\begin{theorem}[Optymalność izotropowego Gaussa — Tw.\ 1 w artykule]
+\label{thm:optimal}
+Zintegrowany błąd kwadratowy (Integrated Square Bias) wynosi:
+\begin{align}
+\mathrm{ISB}_{k\text{-NN}} &= \frac{r_0^4}{(K+2)^2}\,\tau_2^2\,J(p) + O(r_0^4) \label{eq:isb_knn} \\
+\mathrm{ISB}_{\text{kernel}} &\leq \left(\frac{h^2 \mu_2(K)}{2}\right)^2
+\left(2B^2 + 8L^2 J(p)\right) + o(h^4) \label{eq:isb_kernel}
+\end{align}
+gdzie $J(p) = \int \|\nabla^2 \log p(\mathbf{z})\|_F^2 \, p(\mathbf{z}) \, d\mathbf{z}$
+jest \textbf{informacją Fishera drugiego rzędu}.
+
+Wśród rozkładów o kowariancji typu $\kappa \mathbf{I}_K$ (izotropowych),
+\textbf{izotropowy Gauss jest jedynym minimalizatorem} $J(p)$,
+a więc jedynym minimalizatorem ISB.
+\end{theorem}
+
+\begin{keyinsight}[Podsumowanie: dlaczego Gauss?]
+\begin{enumerate}
+  \item \textbf{Izotropia} ($\mathrm{Cov} = \mathbf{I}$): minimalizuje bias i wariancję linear probe,
+  \item \textbf{Gaussowość}: minimalizuje informację Fishera $J(p)$,
+        co minimalizuje ISB dla k-NN i kernel,
+  \item \textbf{Razem}: $\mathcal{N}(\mathbf{0}, \mathbf{I}_K)$ jest jedynym rozkładem
+        optymalnym dla \textit{każdego} możliwego zadania downstream.
+\end{enumerate}
+\end{keyinsight}
+

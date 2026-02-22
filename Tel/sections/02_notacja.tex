@@ -1,0 +1,329 @@
+\clearpage
+%% ============================================================
+\section{Notacja: jak czytać $f_\theta: \mathbb{R}^D \to \mathbb{R}^K$?}
+\label{sec:notacja}
+%% ============================================================
+
+\begin{tcolorbox}[
+  colback=lejepaGreen!8,
+  colframe=lejepaGreen!80,
+  fonttitle=\bfseries,
+  title={Wstawka dla początkujących},
+  breakable,
+]
+
+\subsection*{Rozbiór symboli — element po elemencie}
+
+Zapis $f_\theta: \mathbb{R}^D \to \mathbb{R}^K$ czytamy:
+
+\begin{center}
+\large
+$\underbrace{f}_{\text{funkcja}}
+\underbrace{_\theta}_{\text{param.\ }\theta}
+: \;
+\underbrace{\mathbb{R}^D}_{\text{wejście}}
+\;\to\;
+\underbrace{\mathbb{R}^K}_{\text{wyjście}}$
+\end{center}
+
+\bigskip
+
+\renewcommand{\arraystretch}{1.6}
+\begin{tabular}{p{1.5cm}p{0.68\textwidth}}
+\toprule
+\textbf{Symbol} & \textbf{Co oznacza?} \\
+\midrule
+$f$ & \textbf{Funkcja} — maszyna, która coś dostaje i coś wypluwa.
+      Tutaj: sieć neuronowa (encoder). \\
+$\theta$ & \textbf{Parametry} sieci — wagi i biasy, których sieć uczy się podczas
+           treningu. Dolny indeks $\theta$ mówi: ``ta funkcja zależy od parametrów $\theta$''. \\
+$\mathbb{R}^D$ & \textbf{Wejście}: wektor $D$ liczb rzeczywistych.
+                  $\mathbb{R}$ = liczby rzeczywiste ($-3.14$, $0$, $42.5$, \ldots).
+                  Indeks górny $D$ = ile tych liczb.
+                  Np.\ obraz $224 \times 224 \times 3$ (RGB) to wektor $D = 150{,}528$ liczb. \\
+$\to$ & \textbf{Strzałka}: ``mapuje na'' / ``zamienia na'' / ``produkuje''. \\
+$\mathbb{R}^K$ & \textbf{Wyjście}: wektor $K$ liczb — tzw.\ \textbf{embedding}.
+                  Np.\ $K=384$ w ViT-Small. Dużo mniejszy niż $D$! \\
+\bottomrule
+\end{tabular}
+
+\subsection*{Analogia: tłumacz}
+
+Wyobraź sobie \textbf{tłumacza} w biurze ONZ:
+
+\begin{center}\small
+\begin{tabular}{rcl}
+\textbf{Mowa po polsku} & $\xrightarrow{f_\theta}$ & \textbf{Notatka uniwersalna} \\
+(długa, $D$ słów) & & (krótka, $K$ słów) \\[0.3em]
+$\mathbb{R}^D$ & $\to$ & $\mathbb{R}^K$ \\
+\end{tabular}
+\end{center}
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Wejście} ($\mathbb{R}^D$): oryginalna mowa — dużo szczegółów, szumu, powtórzeń.
+  \item \textbf{Tłumacz} ($f_\theta$): sieć neuronowa — wyciąga \textit{sens}, odrzuca bałagan.
+  \item \textbf{Wyjście} ($\mathbb{R}^K$): zwięzła notatka — zawiera tylko to, co ważne.
+  \item $\theta$: \textit{doświadczenie} tłumacza — im lepiej wytrenowany, tym lepsza notatka.
+\end{itemize}
+
+\subsection*{Konkretny przykład}
+
+\begin{center}\small
+\begin{tabular}{rcl}
+Ramka wideo & $\xrightarrow{\text{ViT-Small}}$ & Embedding \\
+$224{\times}224{\times}3$ pikseli & & $384$ liczby \\
+$\mathbf{x} \in \mathbb{R}^{150528}$ & $\to$ & $\mathbf{z} \in \mathbb{R}^{384}$ \\
+\end{tabular}
+\end{center}
+
+Te $384$ liczby to \textbf{reprezentacja} — kompresja tego, co jest na obrazie
+(``tu jest narzędzie chirurgiczne, tu tęczówka, tu soczewka'').
+Zamiast $150{,}528$ pikseli, mamy $384$ liczby, które \textit{opisują scenę}.
+
+\end{tcolorbox}
+
+\bigskip
+
+%% ============================================================
+\subsection{Co to jest \textit{downstream}?}
+\label{sec:downstream}
+%% ============================================================
+
+\begin{tcolorbox}[
+  colback=lejepaGreen!8,
+  colframe=lejepaGreen!80,
+  fonttitle=\bfseries,
+  title={Wstawka: Downstream task = zadanie dalsze},
+  breakable,
+]
+
+Trening modeli SSL (self-supervised learning) dzieli się na dwa etapy:
+
+\bigskip
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{|c|c|}
+\hline
+\textbf{Etap 1: Pretraining (upstream)} & \textbf{Etap 2: Downstream task} \\
+\hline
+Trenuj encoder $f_\theta$ &
+Zamroź encoder, użyj embeddingów \\
+na surowych danych (bez etykiet) &
+do \textit{konkretnego} zadania (z etykietami) \\
+\hline
+``Naucz się języka'' &
+``Zdaj egzamin'' \\
+\hline
+\end{tabular}
+\end{center}
+
+\bigskip
+
+\textbf{Analogia}: Pomyśl o wykształceniu:
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Upstream} (pretraining) = \textbf{szkoła ogólna}:
+  \begin{itemize}
+    \item Uczysz się czytać, pisać, liczyć, myśleć logicznie.
+    \item Nie wiesz jeszcze, jaki zawód wybierzesz.
+    \item Nie ma ``ocen'' z przyszłego zawodu — uczysz się \textit{ogólnie}.
+  \end{itemize}
+
+  \item \textbf{Downstream} = \textbf{praca po szkole}:
+  \begin{itemize}
+    \item Dostajesz konkretne zadanie: ``rozpoznaj fazę operacji'' albo ``wykryj instrument''.
+    \item Używasz tego, czego nauczyłeś się w szkole (embeddingi).
+    \item Dodajesz tylko mały ``dodatek'' (linear probe, k-NN), żeby rozwiązać zadanie.
+  \end{itemize}
+\end{enumerate}
+
+\bigskip
+
+\textbf{Przykłady downstream tasks}:
+
+\begin{center}\footnotesize
+\begin{tabular}{lll}
+\toprule
+\textbf{Zadanie} & \textbf{Wejście} & \textbf{Wyjście} \\
+\midrule
+Klasyfik.\ fazy & emb.\ ramki & ``phaco''/``IOL'' \\
+Wykrycie instr. & emb.\ ramki & ``tak''/``nie'' \\
+Segmentacja & emb.\ patchy & mapa pikseli \\
+Retrieval & emb.\ zapytania & top-$k$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\bigskip
+
+\begin{keyinsight}[Dlaczego to ważne dla izotropowego Gaussa?]
+Podczas pretreningu \textbf{nie wiemy}, jakie zadanie downstream przyjdzie.
+Dlatego chcemy, żeby embeddingi były dobre na \textit{każde} możliwe zadanie.
+
+Izotropowy Gauss gwarantuje to matematycznie: żaden kierunek nie jest
+uprzywilejowany, więc \textit{dowolna} granica decyzyjna (dowolny klasyfikator)
+będzie miała minimalny błąd.
+\end{keyinsight}
+
+\end{tcolorbox}
+
+%% ============================================================
+\subsection{Co to jest granica decyzyjna?}
+\label{sec:granica}
+%% ============================================================
+
+\begin{tcolorbox}[
+  colback=lejepaGreen!8,
+  colframe=lejepaGreen!80,
+  fonttitle=\bfseries,
+  title={Wstawka: Granica decyzyjna i klasyfikator},
+  breakable,
+]
+
+\textbf{Klasyfikator} to ten mały ``dodatek'' (linear probe, k-NN),
+który nakładamy na zamrożone embeddingi, żeby rozwiązać konkretne zadanie.
+
+\textbf{Granica decyzyjna} to linia (w 2D), płaszczyzna (w 3D) lub
+hiperpłaszczyzna (w $K$D), którą klasyfikator rysuje w przestrzeni embeddingów,
+żeby \textbf{podzielić} ją na klasy:
+
+\begin{itemize}[leftmargin=2em]
+  \item Punkty \textbf{po jednej stronie} granicy $\Rightarrow$ klasa A (np.\ ``incision''),
+  \item Punkty \textbf{po drugiej stronie} $\Rightarrow$ klasa B (np.\ ``phaco''),
+  \item Nowy, niewidziany punkt: patrzymy \textbf{po której stronie} granicy leży
+        $\Rightarrow$ przypisujemy klasę.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/decision_boundary.pdf}
+\caption{\textbf{Lewo}: Granica decyzyjna = linia dzieląca embeddingi dwóch klas.
+Nowy punkt (zielona gwiazdka) wpada po stronie A $\Rightarrow$ klasyfikujemy go jako A.
+\textbf{Środek}: Izotropowe embeddingi — granica działa dobrze
+w \textit{każdym} kierunku, bo punkty równomiernie wypełniają przestrzeń.
+\textbf{Prawo}: Anizotropowe — wzdłuż ``ściśniętej'' osi ($z_2$) granica
+prawie nie rozdziela klas, bo punkty leżą na kupce.}
+\label{fig:decision}
+\end{figure}
+
+\end{tcolorbox}
+
+\bigskip
+
+%% ============================================================
+\subsection{Dlaczego izotropia jest kluczowa? Przykład i kontrprzykład}
+\label{sec:izotropia_przyklad}
+%% ============================================================
+
+\begin{tcolorbox}[
+  colback=lejepaBlue!5,
+  colframe=lejepaBlue!80,
+  fonttitle=\bfseries,
+  title={Przykład: ten sam encoder, dwa różne zadania downstream},
+  breakable,
+]
+
+Wyobraź sobie, że masz wytrenowany encoder (ViT + LeJEPA)
+i dostajesz \textbf{dwa różne zadania} do rozwiązania:
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Zadanie A}: rozpoznaj fazę operacji
+        $\Rightarrow$ granica decyzyjna biegnie \textit{pionowo} (wzdłuż $z_1$),
+  \item \textbf{Zadanie B}: wykryj obecność instrumentu
+        $\Rightarrow$ granica decyzyjna biegnie \textit{poziomo} (wzdłuż $z_2$).
+\end{itemize}
+
+Nie wiesz z góry, które zadanie dostaniesz -- a embeddingi są już zamrożone.
+
+\subsubsection{Przypadek 1: Embeddingi izotropowe ($\boldsymbol{\Sigma} = \mathbf{I}$)}
+
+Punkty rozłożone \textbf{równomiernie} we wszystkich kierunkach:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{lcc}
+\toprule
+ & \textbf{Zad. A (pion.)} & \textbf{Zad. B (poz.)} \\
+\midrule
+Rozrzut & $\sigma = 1$ & $\sigma = 1$ \\
+Separacja klas & wyraźna & wyraźna \\
+\textbf{Accuracy} & \textbf{89\%} & \textbf{89\%} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Oba zadania działają \textbf{równie dobrze}, bo w obu kierunkach jest tyle samo ``miejsca''.
+
+\subsubsection{Przypadek 2: Embeddingi anizotropowe ($\sigma_1 \gg \sigma_2$)}
+
+Punkty \textbf{rozciągnięte} wzdłuż $z_1$ i \textbf{ściśnięte} wzdłuż $z_2$:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{lcc}
+\toprule
+ & \textbf{Zad. A (pion.)} & \textbf{Zad. B (poz.)} \\
+\midrule
+Rozrzut & $\sigma_1 = 3.5$ (ogromny!) & $\sigma_2 = 0.12$ (malutki) \\
+Separacja klas & rozmyta (dużo szumu) & idealnie ostra \\
+\textbf{Accuracy} & \textbf{68\%} (porażka!) & \textbf{99\%} (świetnie!) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Co się stało?}
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Zadanie A} wymagało separacji wzdłuż $z_1$ --
+        ale tam jest ogromny rozrzut ($\sigma_1 = 3.5$),
+        więc klasy się mieszają i granica decyzyjna popełnia dużo błędów.
+  \item \textbf{Zadanie B} wymagało separacji wzdłuż $z_2$ --
+        tam rozrzut jest malutki ($\sigma_2 = 0.12$),
+        więc nawet mała separacja klas jest wystarczająca.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/isotropy_example_vs_counterexample.pdf}
+\caption{Porównanie izotropowego (góra) i anizotropowego (dół) rozkładu embeddingów
+na dwóch zadaniach downstream.
+\textbf{Górny rząd}: izotropowy -- oba zadania na 89\%, bo rozrzut jest jednakowy w obu kierunkach.
+\textbf{Dolny rząd}: anizotropowy -- Zadanie A spada do 68\% (klasy się mieszają wzdłuż $z_1$),
+Zadanie B skacze do 99\% (klasy ostro rozdzielone wzdłuż $z_2$).}
+\label{fig:isotropy_example}
+\end{figure}
+
+\subsubsection{Kluczowa obserwacja}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Rozkład embeddingów} & \textbf{Najgorsze zadanie} & \textbf{Najlepsze zadanie} \\
+\midrule
+Izotropowy & 89\% & 89\% \\
+Anizotropowy & 68\% & 99\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Anizotropowy encoder to \textbf{hazard}: może trafić w zadanie, dla którego jest świetny (99\%),
+albo w zadanie, dla którego jest fatalny (68\%).
+Izotropowy encoder daje \textbf{gwarancję}: niezależnie od zadania, wynik jest stabilnie dobry.
+
+\begin{keyinsight}[Dlaczego izotropia?]
+Podczas pretreningu \textbf{nie wiemy}, jakie zadanie downstream przyjdzie.
+Nie wiemy, w jakim kierunku będzie biegła granica decyzyjna.
+
+Izotropowy Gauss $\mathcal{N}(\mathbf{0}, \mathbf{I})$ gwarantuje,
+że \textbf{żaden kierunek nie jest gorszy od innego} --
+rozrzut jest identyczny we \textit{wszystkich} $384$ wymiarach embeddingu.
+Dlatego \textit{dowolne} zadanie downstream (dowolna orientacja granicy decyzyjnej)
+da co najmniej tak dobry wynik, jak najgorszy przypadek izotropowego rozkładu.
+
+To nie jest kwestia ``więcej linii'' -- to kwestia
+\textbf{eliminacji ryzyka}, że trafimy na kierunek, w którym embeddingi są bezużyteczne.
+\end{keyinsight}
+
+\end{tcolorbox}
+

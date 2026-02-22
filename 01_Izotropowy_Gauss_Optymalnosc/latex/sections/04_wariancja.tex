@@ -103,12 +103,12 @@ Gdy mamy $K$ zmiennych ($K$ wymiarów embeddingu), potrzebujemy
 Dla wektora $\mathbf{z} = (z_1, \ldots, z_K)^\top$:
 \begin{equation}
 \boxed{
-\boldsymbol{\Sigma} = \begin{pmatrix}
+\boldsymbol{\Sigma} = \begin{bmatrix}
 \sigma_1^2 & \sigma_{12} & \cdots & \sigma_{1K} \\
 \sigma_{12} & \sigma_2^2 & \cdots & \sigma_{2K} \\
 \vdots & \vdots & \ddots & \vdots \\
 \sigma_{1K} & \sigma_{2K} & \cdots & \sigma_K^2
-\end{pmatrix}
+\end{bmatrix}
 \in \mathbb{R}^{K \times K}
 }
 \end{equation}
@@ -121,14 +121,14 @@ Dla wektora $\mathbf{z} = (z_1, \ldots, z_K)^\top$:
 
 \textbf{Przykład 2D}:
 \begin{equation}
-\boldsymbol{\Sigma} = \begin{pmatrix}
+\boldsymbol{\Sigma} = \begin{bmatrix}
 \sigma_1^2 & \sigma_{12} \\
 \sigma_{12} & \sigma_2^2
-\end{pmatrix}
-= \begin{pmatrix}
+\end{bmatrix}
+= \begin{bmatrix}
 \text{rozrzut w }z_1 & \text{związek }z_1 \leftrightarrow z_2 \\
 \text{związek }z_1 \leftrightarrow z_2 & \text{rozrzut w }z_2
-\end{pmatrix}
+\end{bmatrix}
 \end{equation}
 
 \subsection{Wartości własne: co mówią o kształcie danych?}

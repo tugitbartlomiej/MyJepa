@@ -1,0 +1,93 @@
+\clearpage
+%% ============================================================
+\section{Ogólny obraz: co budujemy i po co?}
+\label{sec:big_picture}
+%% ============================================================
+
+Zanim wejdziemy w matematykę, ustalmy \textbf{co jest czym}.
+W tym projekcie mamy do czynienia z trzema rzeczami, które łatwo pomylić:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.8}
+\begin{tabular}{p{1.5cm}p{0.68\textwidth}}
+\toprule
+\textbf{Nazwa} & \textbf{Czym jest?} \\
+\midrule
+\textbf{ViT} \newline (Vision Transformer) &
+\textbf{Sieć neuronowa} -- architektura encodera.
+Zwykła maszyna: obraz wchodzi, wektor liczb (embedding) wychodzi.
+ViT sam z siebie \textit{nie wie}, czego się uczyć -- potrzebuje metody treningu. \\
+\textbf{LeJEPA} \newline (metoda treningu) &
+\textbf{Przepis na trening} ViT-a bez etykiet (self-supervised).
+Mówi: ``podaj sieci dwa widoki tego samego kadru, policz taki-a-taki loss,
+zaktualizuj wagi''. LeJEPA \textit{nie jest} siecią neuronową -- to algorytm,
+który \textit{używa} ViT-a jako swojego encodera. \\
+\textbf{SIGReg} \newline (regularyzator) &
+\textbf{Składnik lossu} wewnątrz LeJEPA.
+Wymusza, żeby embeddingi miały rozkład $\mathcal{N}(\mathbf{0}, \mathbf{I})$
+(izotropowy Gauss -- temu poświęcony jest cały ten dokument). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Jak to się łączy? Schemat}
+
+Cały system wygląda tak:
+
+\begin{center}
+\fbox{\parbox{0.95\textwidth}{\small
+\centering
+\textbf{PRETRAINING (bez etykiet)} \\[0.5em]
+Ramka $\mathbf{x}$
+$\xrightarrow{\text{augm.}}$ Widoki $\mathbf{x}', \mathbf{x}''$
+$\xrightarrow{\text{ViT}}$ $\mathbf{z}', \mathbf{z}''$
+\\[0.5em]
+$\downarrow$ \\[0.2em]
+$\mathcal{L} = \lambda \cdot \text{SIGReg}(\mathbf{z})
++ (1{-}\lambda) \cdot \text{pred.\ loss}$
+\\[0.3em]
+$\downarrow$ \\[0.2em]
+Gradient descent $\to$ wagi $\theta$
+}}
+\end{center}
+
+\bigskip
+
+\begin{center}
+\fbox{\parbox{0.95\textwidth}{\small
+\centering
+\textbf{DOWNSTREAM (po treningu)} \\[0.5em]
+Obraz $\mathbf{x}$
+$\xrightarrow{\text{ViT (zamroż.)}}$
+$\mathbf{z} \in \mathbb{R}^{384}$
+$\xrightarrow{\text{klasyfik.}}$ Wynik
+\\[0.3em]
+Wagi $\theta$ \textbf{zamrożone}.
+Uczymy \textit{tylko} mały klasyfikator.
+}}
+\end{center}
+
+\subsection{Analogia}
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{ViT} = \textbf{uczeń} (sieć neuronowa z wagami $\theta$).
+  \item \textbf{LeJEPA} = \textbf{program nauczania w szkole}
+        -- mówi uczniowi \textit{jak} się uczyć (jakie ćwiczenia robić, jak oceniać postępy).
+  \item \textbf{SIGReg} = \textbf{jedno z ćwiczeń} w programie
+        -- ``upewnij się, że twoje notatki (embeddingi) są równomiernie rozłożone''.
+  \item \textbf{Downstream} = \textbf{praca po szkole}
+        -- uczeń (ViT) stosuje swoją wiedzę (zamrożone $\theta^*$) do nowych zadań.
+        Program nauczania (LeJEPA) już \textit{nie istnieje} -- został tylko wytrenowany uczeń.
+\end{itemize}
+
+\begin{keyinsight}[Zapamiętaj to!]
+\textbf{ViT} produkuje embeddingi. \textbf{LeJEPA} mówi ViT-owi \textit{jak się uczyć}.
+\textbf{SIGReg} pilnuje, żeby embeddingi miały \textit{właściwy rozkład}.
+
+Po treningu LeJEPA i SIGReg ``znikają'' -- zostaje \textbf{wytrenowany ViT}
+z wagami $\theta^*$, który produkuje dobre embeddingi.
+
+Cały ten dokument wyjaśnia \textit{dlaczego} SIGReg wymusza akurat izotropowy Gauss
+$\mathcal{N}(\mathbf{0}, \mathbf{I})$ -- i dlaczego to jest matematycznie optymalne.
+\end{keyinsight}
+
