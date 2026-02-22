@@ -1072,6 +1072,340 @@ punkty \textbf{skupiają się} w~jednym miejscu i~średnia jest daleko od zera.
 To właśnie mierzy funkcja charakterystyczna!
 \end{tcolorbox}
 
+%% =============================================================
+%% Element 0.75: Momenty rozkładu --- teoria od podstaw
+%% =============================================================
+\subsubsection{Element 0.75: Momenty rozkładu --- czym są i~do czego służą}
+
+Zanim wyjaśnimy, dlaczego w~SIGReg używamy akurat $e^{itX}$,
+musimy poznać prostsze narzędzie, z~którego CF wyrasta --- \textbf{momenty rozkładu}.
+
+\begin{tcolorbox}[colback=gray!5, colframe=gray!60, breakable,
+  title={Co to jest moment rozkładu? --- od kuchni}]
+
+\textbf{Wyobraź sobie:} Masz zbiór $N$ liczb, np.\ wyniki egzaminu
+100~studentów (w~procentach):
+\[
+x_1 = 45, \quad x_2 = 72, \quad x_3 = 68, \quad \ldots, \quad x_{100} = 81
+\]
+
+Pytanie: jak \textbf{opisać} ten zbiór jedną lub kilkoma liczbami?
+
+\end{tcolorbox}
+
+\medskip
+\textbf{Moment 1.: Średnia --- ``gdzie jest środek?''}
+
+Pierwszy moment to po prostu \textbf{średnia} (wartość oczekiwana):
+\[
+\mu = \mathbb{E}[X] = \frac{1}{N}\sum_{j=1}^{N} x_j
+\]
+
+\textbf{Przykład:} Egzamin z~5~ocenami: $55, 60, 70, 75, 90$.
+\[
+\mu = \frac{55 + 60 + 70 + 75 + 90}{5} = \frac{350}{5} = 70
+\]
+Średnia mówi: ``wyniki skupiają się wokół $70$''.
+
+\begin{center}
+\begin{tikzpicture}[scale=0.065]
+  \draw[->] (40,0) -- (100,0) node[right] {\small wynik};
+  \foreach \x in {55,60,70,75,90} {
+    \fill[lejepaBlue] (\x,0) circle (6pt);
+    \node[below] at (\x,-1.5) {\tiny\x};
+  }
+  \draw[thick, lejepaRed, ->] (70,6) -- (70,1.5);
+  \node[above, lejepaRed] at (70,6) {\small $\mu = 70$};
+\end{tikzpicture}
+\end{center}
+
+\textbf{Ale to nie wystarczy!} Dwa zbiory mogą mieć tę samą średnią,
+ale wyglądać zupełnie inaczej:
+\begin{itemize}[leftmargin=2em]
+  \item Zbiór A: $68, 69, 70, 71, 72$ --- średnia $= 70$, \textbf{ciasno skupione}
+  \item Zbiór B: $10, 40, 70, 100, 130$ --- średnia $= 70$, \textbf{bardzo rozrzucone}
+\end{itemize}
+Potrzebujemy czegoś więcej.
+
+\bigskip
+\textbf{Moment 2.: Wariancja --- ``jak bardzo rozrzucone?''}
+
+Drugi moment (centralny) to \textbf{wariancja} --- mierzy,
+jak daleko wartości odchylają się od średniej:
+\[
+\sigma^2 = \mathrm{Var}(X) = \mathbb{E}\big[(X - \mu)^2\big]
+= \frac{1}{N}\sum_{j=1}^{N} (x_j - \mu)^2
+\]
+
+\textbf{Krok po kroku} dla zbioru A: $68, 69, 70, 71, 72$ (średnia $\mu = 70$):
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{c c c c}
+\toprule
+$x_j$ & $x_j - \mu$ & $(x_j - \mu)^2$ & Komentarz \\
+\midrule
+$68$ & $-2$ & $4$ & 2~pkt poniżej średniej \\
+$69$ & $-1$ & $1$ &  \\
+$70$ & $0$ & $0$ & dokładnie na średniej \\
+$71$ & $+1$ & $1$ &  \\
+$72$ & $+2$ & $4$ &  \\
+\midrule
+& & $\sigma^2 = \frac{4+1+0+1+4}{5} = \mathbf{2{,}0}$ & \textbf{mała wariancja} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Dla zbioru B: $10, 40, 70, 100, 130$ (średnia $\mu = 70$):
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{c c c}
+\toprule
+$x_j$ & $x_j - \mu$ & $(x_j - \mu)^2$ \\
+\midrule
+$10$ & $-60$ & $3600$ \\
+$40$ & $-30$ & $900$ \\
+$70$ & $0$ & $0$ \\
+$100$ & $+30$ & $900$ \\
+$130$ & $+60$ & $3600$ \\
+\midrule
+& & $\sigma^2 = \frac{3600+900+0+900+3600}{5} = \mathbf{1800}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Wariancja $2$ vs $1800$ --- teraz widzimy różnicę!
+
+\textbf{Odchylenie standardowe} $\sigma = \sqrt{\sigma^2}$ ma te same jednostki co dane
+(np.\ $\sigma_A = \sqrt{2} \approx 1{,}4$ punktu, $\sigma_B = \sqrt{1800} \approx 42$ punkty).
+
+\begin{tcolorbox}[colback=blue!5, colframe=blue!60!black]
+\textbf{Dlaczego podnosimy do kwadratu?} Bo odchylenia $x_j - \mu$ mogą być
+ujemne (poniżej średniej) lub dodatnie (powyżej). Gdybyśmy je po prostu
+zsumowali, ujemne i~dodatnie by się \textit{zniosły} i~dały~$0$.
+Kwadrat $(x_j - \mu)^2$ jest zawsze $\geq 0$, więc duże odchylenia
+się nie kasują.
+\end{tcolorbox}
+
+\bigskip
+\textbf{Moment 3.: Skośność --- ``czy rozkład jest symetryczny?''}
+
+Trzeci moment (centralny, standaryzowany) to \textbf{skośność} (ang.\ \textit{skewness}):
+\[
+\gamma_1 = \mathbb{E}\!\left[\left(\frac{X - \mu}{\sigma}\right)^{\!3}\right]
+\]
+
+\begin{itemize}[leftmargin=2em]
+  \item $\gamma_1 = 0$ --- rozkład jest \textbf{symetryczny} (np.\ Gauss)
+  \item $\gamma_1 > 0$ --- rozkład ma \textbf{długi ogon w~prawo}
+        (mało osób zarabia bardzo dużo)
+  \item $\gamma_1 < 0$ --- rozkład ma \textbf{długi ogon w~lewo}
+\end{itemize}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.8, >=stealth]
+  % Symetryczny
+  \begin{scope}[shift={(-4.5,0)}]
+    \draw[->] (-2.2,0) -- (2.5,0);
+    \draw[thick, lejepaBlue, domain=-2:2, samples=50]
+      plot (\x, {1.5*exp(-\x*\x)});
+    \node[below] at (0,-0.3) {\small$\gamma_1 = 0$};
+    \node[above] at (0,1.7) {\small symetryczny};
+  \end{scope}
+  % Prawo-skośny
+  \begin{scope}[shift={(0,0)}]
+    \draw[->] (-1.2,0) -- (3.5,0);
+    \draw[thick, lejepaRed, domain=0.01:3.2, samples=50]
+      plot (\x, {2.5*\x*exp(-\x)});
+    \node[below] at (1,-0.3) {\small$\gamma_1 > 0$};
+    \node[above] at (1,1.7) {\small ogon w~prawo};
+  \end{scope}
+  % Lewo-skośny
+  \begin{scope}[shift={(5.5,0)}]
+    \draw[->] (-3.5,0) -- (1.2,0);
+    \draw[thick, lejepaGreen, domain=-3.2:-0.01, samples=50]
+      plot (\x, {-2.5*\x*exp(\x)});
+    \node[below] at (-1,-0.3) {\small$\gamma_1 < 0$};
+    \node[above] at (-1,1.7) {\small ogon w~lewo};
+  \end{scope}
+\end{tikzpicture}
+\end{center}
+
+\textbf{Dlaczego potęga 3?}
+Potęga nieparzysta zachowuje znak: $(x - \mu)^3$ jest ujemne gdy $x < \mu$
+i~dodatnie gdy $x > \mu$. Jeśli jest więcej wartości daleko po prawej stronie,
+suma wychodzi dodatnia $\Rightarrow$ skośność $> 0$.
+
+\bigskip
+\textbf{Moment 4.: Kurtoza --- ``jak grube ogony?''}
+
+Czwarty moment (centralny, standaryzowany) to \textbf{kurtoza} (ang.\ \textit{kurtosis}):
+\[
+\gamma_2 = \mathbb{E}\!\left[\left(\frac{X - \mu}{\sigma}\right)^{\!4}\right] - 3
+\]
+(Odejmujemy $3$, bo rozkład Gaussa ma kurtosis $= 3$; po odjęciu Gauss ma $\gamma_2 = 0$.)
+
+\begin{itemize}[leftmargin=2em]
+  \item $\gamma_2 = 0$ --- ogony jak Gauss (rozkład \textbf{mezokurtyczny})
+  \item $\gamma_2 > 0$ --- \textbf{grubsze} ogony niż Gauss (więcej wartości ekstremalnych)
+  \item $\gamma_2 < 0$ --- \textbf{cieńsze} ogony niż Gauss (mniej wartości ekstremalnych)
+\end{itemize}
+
+\bigskip
+\textbf{Ogólna definicja: $n$-ty moment}
+
+\begin{tcolorbox}[colback=lejepaGreen!8, colframe=lejepaGreen!80, breakable,
+  title={Definicja: Momenty rozkładu}]
+
+Dla zmiennej losowej $X$:
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{$n$-ty moment (zwykły):}
+    $m_n = \mathbb{E}[X^n] = \int_{-\infty}^{\infty} x^n \, p(x)\,dx$
+  \item \textbf{$n$-ty moment centralny} (wokół średniej):
+    $\mu_n = \mathbb{E}[(X - \mu)^n]$
+\end{itemize}
+
+\medskip
+Pierwsze cztery momenty centralne mają nazwy:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{c l l l}
+\toprule
+$n$ & \textbf{Nazwa} & \textbf{Wzór} & \textbf{Co mierzy} \\
+\midrule
+$1$ & Średnia & $\mu = \mathbb{E}[X]$ & położenie (``gdzie jest środek'') \\
+$2$ & Wariancja & $\sigma^2 = \mathbb{E}[(X\!-\!\mu)^2]$ & rozrzut (``jak szeroki'') \\
+$3$ & Skośność & $\gamma_1 = \mathbb{E}[((X\!-\!\mu)/\sigma)^3]$ & asymetria (``który ogon dłuższy'') \\
+$4$ & Kurtoza & $\gamma_2 = \mathbb{E}[((X\!-\!\mu)/\sigma)^4] - 3$ & grubość ogonów \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Każdy kolejny moment opisuje coraz \textit{subtelniejszą} cechę kształtu rozkładu.
+Dla $\mathcal{N}(0,1)$: $\mu = 0$, $\sigma^2 = 1$, $\gamma_1 = 0$, $\gamma_2 = 0$.
+\end{tcolorbox}
+
+\begin{keyinsight}[Momenty to ``pytania'' zadawane rozkładowi]
+Można myśleć o~momentach jak o~coraz trudniejszych pytaniach:
+\begin{enumerate}[leftmargin=2em]
+  \item[\textbf{1.}] Gdzie jest środek? $\longrightarrow$ średnia
+  \item[\textbf{2.}] Jak bardzo rozrzucony? $\longrightarrow$ wariancja
+  \item[\textbf{3.}] Czy symetryczny? $\longrightarrow$ skośność
+  \item[\textbf{4.}] Czy ma grube ogony? $\longrightarrow$ kurtoza
+  \item[\textbf{5,6,\ldots}] Coraz subtelniejsze cechy kształtu\ldots
+\end{enumerate}
+Znając \textit{wszystkie} momenty (nieskończenie wiele), chcielibyśmy
+odtworzyć cały rozkład. Czy to jest możliwe? O~tym za chwilę.
+\end{keyinsight}
+
+%% ----- Element 0.8: Dlaczego akurat e^{itX}? -----
+\subsubsection{Element 0.8: Dlaczego akurat $e^{itX}$? --- skąd ten wzór}
+
+\begin{tcolorbox}[colback=red!5, colframe=red!60!black, breakable,
+  title={Pytanie: Dlaczego $e^{itX}$, a~nie coś prostszego?}]
+
+Poznaliśmy momenty --- średnią, wariancję, skośność, kurtozę\ldots
+Moglibyśmy próbować opisać rozkład
+\textit{właśnie} za pomocą momentów. Ale czy to wystarczy?
+
+Prześledźmy trzy próby opisu rozkładu --- od prostych do~CF.
+\end{tcolorbox}
+
+\textbf{Próba 1: Momenty --- $\mathbb{E}[X]$, $\mathbb{E}[X^2]$, $\mathbb{E}[X^3]$, \ldots}
+
+Najprostszy pomysł: opisujemy rozkład przez jego momenty
+(tę samą listę, którą właśnie poznaliśmy).
+Jeśli znamy \textit{wszystkie} momenty: $m_1, m_2, m_3, \ldots$ ---
+to czy jednoznacznie wiemy, jaki to rozkład?
+
+\textbf{Problem: NIE!} Istnieją rozkłady, które mają \textit{dokładnie te same}
+wszystkie momenty, ale są \textbf{różne}!
+(Znany kontrprzykład: rozkład lognormalny i~pewne inne rozkłady mają
+identyczne momenty --- to tzw.\ \textit{problem momentów Stieltiesa}.)
+
+Momenty \textbf{nie} identyfikują jednoznacznie rozkładu.
+
+\medskip
+\textbf{Próba 2: ``Generowanie'' momentów --- $\mathbb{E}[e^{tX}]$}
+
+Sprytniejszy pomysł: zamiast liczyć momenty jeden po drugim,
+zapakujmy je \textit{wszystkie} w~jedną funkcję.
+Rozwijając $e^{tX}$ w~szereg Taylora:
+\[
+\mathbb{E}[e^{tX}]
+= \mathbb{E}\!\left[1 + tX + \frac{t^2 X^2}{2!} + \frac{t^3 X^3}{3!} + \cdots\right]
+= 1 + t\,\mathbb{E}[X] + \frac{t^2}{2!}\,\mathbb{E}[X^2] + \frac{t^3}{3!}\,\mathbb{E}[X^3] + \cdots
+\]
+Jedna funkcja $M(t) = \mathbb{E}[e^{tX}]$ zawiera \textit{wszystkie momenty} ---
+to tak zwana \textbf{funkcja tworząca momenty} (moment generating function, MGF).
+
+\textbf{Problem:} Ta całka $\int e^{tx} p(x)\,dx$ może \textbf{nie istnieć}
+(być nieskończona)! Np.\ dla rozkładu Cauchy'ego $e^{tx}$ rośnie tak szybko,
+że całka wybucha do $\infty$ dla każdego $t \neq 0$.
+
+\medskip
+\textbf{Próba 3 (sukces!): Wstawiamy $i$ --- $\mathbb{E}[e^{itX}]$}
+
+Rozwiązanie: zamiast $e^{tX}$ (rzeczywista eksponenta, która rośnie do~$\infty$),
+bierzemy $e^{itX}$ (zespolona eksponenta = \textbf{obrót po okręgu}).
+
+Dlaczego to pomaga?
+\begin{itemize}[leftmargin=2em]
+  \item $e^{tX}$ rośnie \textbf{bez granic} gdy $X$ jest duże
+        --- całka może nie istnieć.
+  \item $e^{itX} = \cos(tX) + i\sin(tX)$ --- moduł jest \textbf{zawsze~1},
+        bo $|\cos\theta + i\sin\theta| = 1$. Nigdy nie wybucha!
+\end{itemize}
+
+\begin{tcolorbox}[colback=blue!5, colframe=blue!60!black]
+\textbf{Kluczowa różnica:}
+\[
+\underbrace{|e^{tX}|}_{\text{MGF}} = e^{tX}
+\;\xrightarrow{X \to \infty}\; \infty
+\qquad\text{vs.}\qquad
+\underbrace{|e^{itX}|}_{\text{CF}} = 1 \quad\text{zawsze!}
+\]
+Dodanie $i$ zamienia ``eksplozję'' w~``obrót''.
+Dlatego $\mathbb{E}[e^{itX}]$ istnieje \textbf{dla każdego rozkładu} ---
+nawet takiego, który nie ma średniej ani wariancji.
+\end{tcolorbox}
+
+\textbf{A~ponadto:} można udowodnić (twierdzenie inwersji), że CF
+jednoznacznie identyfikuje rozkład:
+\[
+\varphi_X(t) = \varphi_Y(t) \;\;\forall\, t
+\qquad\Longleftrightarrow\qquad
+X \text{ i } Y \text{ mają ten sam rozkład}
+\]
+To jest silniejsze niż momenty --- CF to \textit{prawdziwy} odcisk palca rozkładu.
+
+\begin{tcolorbox}[colback=yellow!5, colframe=yellow!70!black,
+  title={Podsumowanie: 3 próby opisu rozkładu}]
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{l c c c}
+\toprule
+\textbf{Metoda} & \textbf{Wzór} & \textbf{Jednoznaczna?} & \textbf{Zawsze istnieje?} \\
+\midrule
+Momenty & $\mathbb{E}[X^n]$ & Nie zawsze & Nie zawsze \\
+MGF & $\mathbb{E}[e^{tX}]$ & Tak (jeśli istnieje) & \textbf{Nie} \\
+CF & $\mathbb{E}[e^{itX}]$ & \textbf{Tak} & \textbf{Tak} \\
+\bottomrule
+\end{tabular}
+\end{center}
+CF wygrywa w~obu kategoriach --- dlatego jest \textbf{fundamentalnym}
+narzędziem teorii prawdopodobieństwa.
+\end{tcolorbox}
+
+\medskip
+\textbf{Historycznie:} Funkcję charakterystyczną wprowadził
+\textbf{Paul Lévy} w~latach 1920-tych, ale idea sięga
+\textbf{transformaty Fouriera} (Joseph Fourier, 1822).
+CF to po prostu transformata Fouriera gęstości prawdopodobieństwa!
+Jeśli znasz przetwarzanie sygnałów --- CF robi z~rozkładem dokładnie to,
+co FFT robi z~sygnałem: zamienia go z~``dziedziny wartości''
+na ``dziedzinę częstotliwości''.
+
 %% ----- Element 1: Formalna definicja CF -----
 \subsubsection{Element 1: Formalna definicja funkcji charakterystycznej}
 
