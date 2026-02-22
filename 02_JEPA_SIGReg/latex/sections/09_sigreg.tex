@@ -1130,11 +1130,82 @@ a~zamiast masy --- \textit{prawdopodobieństwo}:
 \end{center}
 
 \textbf{Matematyczny moment $n$-tego rzędu} to ``siła'',
-z~jaką dane ciągną na $n$-tą potęgę odległości od środka:
-\[
+z~jaką dane ciągną na $n$-tą potęgę odchylenia od środka:
+\begin{equation}
 \underbrace{\mathbb{E}[(X - \mu)^n]}_{\text{$n$-ty moment centralny}}
-= \text{``średnia wartość } (x - \mu)^n \text{ po wszystkich danych''}
+= \int_{-\infty}^{\infty} (x - \mu)^n \, p(x)\, dx
+\label{eq:moment_central}
+\end{equation}
+
+\textbf{Skąd tu się bierze całka?}
+Przypomnijmy definicję $\mathbb{E}$ z~ramki wyżej:
+dla rozkładu ciągłego z~gęstością $p(x)$, wartość oczekiwana
+\textit{dowolnego} wyrażenia $f(X)$ to:
+\[
+\mathbb{E}[f(X)] = \int_{-\infty}^{\infty} f(x) \, p(x)\, dx
 \]
+W~naszym przypadku $f(x) = (x - \mu)^n$, więc wstawiamy do wzoru
+i~dostajemy równanie~(\ref{eq:moment_central}).
+
+\textbf{Co ta całka robi geometrycznie?}
+Najłatwiej zobaczyć to dla $n = 2$ (wariancji):
+
+\begin{center}
+\begin{tikzpicture}[scale=1.0, >=stealth]
+  % Gauss
+  \draw[->] (-4,0) -- (4.5,0) node[right] {$x$};
+  \draw[->] (-4,0) -- (-4,2.5) node[above] {$p(x)$};
+  \draw[thick, lejepaBlue, domain=-3.8:3.8, samples=100]
+    plot (\x, {2.0*exp(-0.5*\x*\x)});
+  % Mu
+  \draw[dashed, gray] (0,0) -- (0,2.0);
+  \node[below] at (0,-0.15) {$\mu$};
+  % Punkt x_0
+  \draw[thick, lejepaRed, dashed] (2.2,0) -- (2.2,{2.0*exp(-0.5*2.2*2.2)});
+  \fill[lejepaRed] (2.2,0) circle (2pt);
+  \node[below, lejepaRed] at (2.2,-0.15) {$x_0$};
+  % Odchylenie
+  \draw[<->, lejepaRed, thick] (0,-0.6) -- (2.2,-0.6);
+  \node[below, lejepaRed] at (1.1,-0.6) {\small$x_0 - \mu$};
+  % Prostokąt (x-mu)^2 * p(x)
+  \fill[lejepaRed!20] (2.0,0) rectangle (2.4,{(2.2*2.2)*2.0*exp(-0.5*2.2*2.2)*0.15});
+  % Strzałka do prostokąta
+  \draw[->, thick] (3.5,1.2) -- (2.5,{(2.2*2.2)*2.0*exp(-0.5*2.2*2.2)*0.15 + 0.05});
+  \node[right, text width=3.5cm, font=\small] at (3.0,1.5)
+    {$(x_0 - \mu)^2 \cdot p(x_0)$\\= wkład punktu $x_0$\\do wariancji};
+  % Zamalowane pole pod krzywą (wariancja = suma wszystkich wkładów)
+  \fill[lejepaBlue!10, domain=-3.5:3.5, samples=80]
+    plot (\x, {0.15*\x*\x*2.0*exp(-0.5*\x*\x)}) -- (3.5,0) -- (-3.5,0) -- cycle;
+  \draw[thick, lejepaGreen!70!black, domain=-3.5:3.5, samples=80]
+    plot (\x, {0.15*\x*\x*2.0*exp(-0.5*\x*\x)});
+  \node[lejepaGreen!70!black, above] at (-2.3,0.55) {\small$(x\!-\!\mu)^2 \cdot p(x)$};
+\end{tikzpicture}
+\end{center}
+
+\begin{tcolorbox}[colback=orange!5, colframe=orange!70!black, breakable,
+  title={Jak czytać ten wykres?}]
+
+\textbf{Niebieska krzywa} --- gęstość $p(x)$, czyli rozkład Gaussa.
+Mówi, jak prawdopodobne są poszczególne wartości $x$.
+
+\textbf{Zielona krzywa} --- iloczyn $(x - \mu)^2 \cdot p(x)$.
+To jest funkcja ``pod całką'' we wzorze~(\ref{eq:moment_central}) dla $n = 2$.
+Każdy punkt $x$ wnosi wkład:
+\[
+\underbrace{(x - \mu)^2}_{\substack{\text{jak daleko}\\\text{od średniej?}}}
+\;\times\;
+\underbrace{p(x)}_{\substack{\text{jak prawdo-}\\\text{podobny?}}}
+\]
+
+\textbf{Pole pod zieloną krzywą} (jasnoniebieskie) $=$ wartość całki $=$ \textbf{wariancja}.
+
+\medskip
+\textbf{Intuicja:} Punkt daleko od $\mu$ ma duże $(x - \mu)^2$,
+ale małe $p(x)$ (mało prawdopodobny).
+Punkt blisko $\mu$ ma małe $(x - \mu)^2$,
+ale duże $p(x)$ (bardzo prawdopodobny).
+Całka \textbf{równoważy} te dwa efekty --- to średnia ważona prawdopodobieństwem.
+\end{tcolorbox}
 
 Im wyższy rząd $n$, tym \textit{subtelniejszą} cechę kształtu rozkładu opisuje moment
 --- dokładnie tak, jak w~fizyce momenty wyższych rzędów opisują coraz subtelniejsze
@@ -1538,20 +1609,188 @@ Momenty \textbf{nie} identyfikują jednoznacznie rozkładu.
 \medskip
 \textbf{Próba 2: ``Generowanie'' momentów --- $\mathbb{E}[e^{tX}]$}
 
-Sprytniejszy pomysł: zamiast liczyć momenty jeden po drugim,
-zapakujmy je \textit{wszystkie} w~jedną funkcję.
-Rozwijając $e^{tX}$ w~szereg Taylora:
-\[
-\mathbb{E}[e^{tX}]
-= \mathbb{E}\!\left[1 + tX + \frac{t^2 X^2}{2!} + \frac{t^3 X^3}{3!} + \cdots\right]
-= 1 + t\,\mathbb{E}[X] + \frac{t^2}{2!}\,\mathbb{E}[X^2] + \frac{t^3}{3!}\,\mathbb{E}[X^3] + \cdots
-\]
-Jedna funkcja $M(t) = \mathbb{E}[e^{tX}]$ zawiera \textit{wszystkie momenty} ---
-to tak zwana \textbf{funkcja tworząca momenty} (moment generating function, MGF).
+Momenty jako lista ($m_1, m_2, m_3, \ldots$) nie identyfikują rozkładu jednoznacznie.
+Ale co, gdybyśmy \textit{zapakowali je wszystkie w~jedną funkcję}?
 
-\textbf{Problem:} Ta całka $\int e^{tx} p(x)\,dx$ może \textbf{nie istnieć}
+\begin{tcolorbox}[colback=violet!5, colframe=violet!70!black, breakable,
+  title={Dlaczego akurat $e^{tX}$?}]
+
+\textbf{Motywacja:} Mamy nieskończenie wiele momentów:
+$\mathbb{E}[X],\; \mathbb{E}[X^2],\; \mathbb{E}[X^3],\; \ldots$
+
+Chcemy jednej funkcji, która \textit{ukryje w~sobie} wszystkie te momenty.
+Szukamy więc funkcji $f(x)$, której rozwinięcie
+w~szereg Taylora zawiera potęgi $x^n$ --- bo $\mathbb{E}[X^n]$ to $n$-ty moment.
+
+Ale czym jest szereg Taylora? Przypomnijmy ogólny wzór.
+
+\medskip
+\textbf{Ogólny wzór Taylora} (wokół punktu $x = 0$, tzw.\ szereg Maclaurina):
+\begin{equation}
+f(x) = f(0) + f'(0)\,x + \frac{f''(0)}{2!}\,x^2
++ \frac{f'''(0)}{3!}\,x^3 + \cdots
+= \sum_{n=0}^{\infty} \frac{f^{(n)}(0)}{n!}\,x^n
+\label{eq:taylor}
+\end{equation}
+gdzie $f^{(n)}(0)$ to $n$-ta pochodna funkcji $f$ w~punkcie $0$.
+
+\textbf{Słownie:} Każdą ``gładką'' funkcję można zapisać jako
+nieskończoną sumę potęg $x^n$, a~współczynniki przy potęgach
+zależą od pochodnych $f$ w~zerze.
+
+\medskip
+Zobaczmy, jak wygląda to rozwinięcie dla \textbf{kilku znanych funkcji}:
+
+\medskip
+\textbf{Przykład A:} $f(x) = \frac{1}{1-x}$ \quad(szereg geometryczny)
+\[
+\frac{1}{1-x} = 1 + x + x^2 + x^3 + x^4 + \cdots = \sum_{n=0}^{\infty} x^n
+\]
+Współczynniki: $1, 1, 1, 1, \ldots$ --- \textit{wszystkie} potęgi są,
+ale współczynniki to same jedynki (nie ma $1/n!$).
+
+\textbf{Przykład B:} $f(x) = \sin(x)$
+\[
+\sin(x) = x - \frac{x^3}{3!} + \frac{x^5}{5!} - \frac{x^7}{7!} + \cdots
+\]
+\textbf{Brakuje} potęg parzystych ($x^0, x^2, x^4, \ldots$) ---
+nie wyciągniemy z~tego $\mathbb{E}[X^2]$ (wariancji)!
+
+\textbf{Przykład C:} $f(x) = \cos(x)$
+\[
+\cos(x) = 1 - \frac{x^2}{2!} + \frac{x^4}{4!} - \frac{x^6}{6!} + \cdots
+\]
+\textbf{Brakuje} potęg nieparzystych ($x^1, x^3, x^5, \ldots$) ---
+nie wyciągniemy z~tego $\mathbb{E}[X]$ (średniej)!
+
+\textbf{Przykład D:} $f(x) = \ln(1+x)$
+\[
+\ln(1+x) = x - \frac{x^2}{2} + \frac{x^3}{3} - \frac{x^4}{4} + \cdots
+\]
+Są wszystkie potęgi, ale ze \textbf{znakami naprzemiennymi} i~współczynnikami $1/n$.
+Problem: różniczkowanie dałoby skomplikowane kombinacje momentów.
+
+\medskip
+\textbf{Przykład E:} $f(x) = e^x$
+\[
+e^x = 1 + x + \frac{x^2}{2!} + \frac{x^3}{3!} + \frac{x^4}{4!} + \cdots
+= \sum_{n=0}^{\infty} \frac{x^n}{n!}
+\]
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{l c c c}
+\toprule
+\textbf{Funkcja} & \textbf{Wszystkie potęgi $x^n$?}
+  & \textbf{Proste współczynniki?} & \textbf{Nadaje się?} \\
+\midrule
+$\frac{1}{1-x}$ & tak & jedynki (brak $1/n!$) & trudno odczytać momenty \\
+$\sin(x)$ & \textbf{nie} (brak parzystych) & --- & nie \\
+$\cos(x)$ & \textbf{nie} (brak nieparzystych) & --- & nie \\
+$\ln(1+x)$ & tak & skomplikowane ($1/n$, znaki) & niewygodnie \\
+$e^x$ & \textbf{tak} & \textbf{tak} ($1/n!$) & \textbf{idealnie!} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Tylko $e^x$ ma \textbf{wszystkie potęgi} $x^n$ ze współczynnikami $1/n!$,
+które dokładnie ``kasują się'' przy $n$-krotnym różniczkowaniu
+(bo $\frac{d^n}{dx^n}\frac{x^n}{n!} = 1$).
+Dlatego wystarczy wstawić $x = tX$:
+\[
+e^{tX} = 1 + tX + \frac{(tX)^2}{2!} + \frac{(tX)^3}{3!} + \cdots
+= \sum_{n=0}^{\infty} \frac{t^n X^n}{n!}
+\]
+
+Teraz bierzemy wartość oczekiwaną obu stron
+(średnią po wszystkich danych / rozkładzie):
+\begin{align*}
+\mathbb{E}[e^{tX}]
+&= \mathbb{E}\!\left[1 + tX + \frac{t^2 X^2}{2!} + \frac{t^3 X^3}{3!} + \cdots\right] \\[4pt]
+&= 1 + t\underbrace{\mathbb{E}[X]}_{m_1}
++ \frac{t^2}{2!}\underbrace{\mathbb{E}[X^2]}_{m_2}
++ \frac{t^3}{3!}\underbrace{\mathbb{E}[X^3]}_{m_3} + \cdots
+\end{align*}
+
+\textbf{Wynik:} Jedna funkcja $M(t) = \mathbb{E}[e^{tX}]$ koduje
+\textit{wszystkie momenty naraz}!
+Żeby odczytać $n$-ty moment, wystarczy wziąć $n$-tą pochodną po $t$
+w~punkcie $t = 0$:
+\[
+m_n = \mathbb{E}[X^n] = \left.\frac{d^n M(t)}{dt^n}\right|_{t=0}
+\]
+
+\textbf{Dlaczego pochodna ``wyciąga'' moment?} Pokażmy to na konkretnym przykładzie.
+
+Zapiszmy $M(t)$ jako szereg (z~powyższego rozwinięcia):
+\[
+M(t) = \underbrace{1}_{\text{wyraz }0}
++ \underbrace{m_1}_{\text{wyraz }1}\!\cdot t
++ \underbrace{\frac{m_2}{2!}}_{\text{wyraz }2}\!\cdot t^2
++ \underbrace{\frac{m_3}{3!}}_{\text{wyraz }3}\!\cdot t^3
++ \underbrace{\frac{m_4}{4!}}_{\text{wyraz }4}\!\cdot t^4 + \cdots
+\]
+
+\textbf{Chcemy wyciągnąć $m_2$} (2.\ moment = wariancja).
+Różniczkujemy po $t$ dwa razy:
+
+\medskip
+\textbf{Pierwsza pochodna} $\frac{dM}{dt}$
+--- przypomnienie: $\frac{d}{dt} t^n = n\,t^{n-1}$:
+\[
+M'(t) = 0 + m_1 + \frac{m_2}{2!}\cdot 2t + \frac{m_3}{3!}\cdot 3t^2
++ \frac{m_4}{4!}\cdot 4t^3 + \cdots
+\]
+
+\textbf{Druga pochodna} $\frac{d^2M}{dt^2}$:
+\[
+M''(t) = 0 + 0 + \frac{m_2}{\cancel{2!}}\cdot \cancel{2} + \frac{m_3}{3!}\cdot 3\cdot 2\,t
++ \frac{m_4}{4!}\cdot 4\cdot 3\,t^2 + \cdots
+\]
+
+\textbf{Wstawiamy $t = 0$} --- wszystkie wyrazy z~$t, t^2, t^3, \ldots$ znikają!
+\[
+M''(0) = m_2 + 0 + 0 + \cdots = m_2 \qquad\checkmark
+\]
+
+\begin{tcolorbox}[colback=green!5, colframe=green!60!black]
+\textbf{Co się tu stało?}
+Każdy wyraz szeregu to $\frac{m_n}{n!}\,t^n$.
+Gdy różniczkujemy $n$~razy, z~$t^n$ powstaje $n! \cdot t^0 = n!$,
+które \textbf{kasuje} $n!$ w~mianowniku:
+\[
+\frac{d^n}{dt^n}\left(\frac{m_n}{n!}\,t^n\right) = \frac{m_n}{\cancel{n!}} \cdot \cancel{n!} = m_n
+\]
+Wstawienie $t = 0$ zabija wszystkie \textit{wyższe} wyrazy (bo mają $t^1, t^2, \ldots$).
+Zostaje \textbf{dokładnie} $m_n$.
+
+To dlatego współczynniki $1/n!$ w~$e^x$ są kluczowe ---
+są ``odwrotnością'' tego, co robi $n$-krotne różniczkowanie!
+\end{tcolorbox}
+
+\textbf{Dlatego} ta funkcja nazywa się \textbf{funkcją tworzącą momenty}
+(ang.\ \textit{moment generating function}, MGF) ---
+dosłownie ``generuje'' momenty przez różniczkowanie.
+
+\medskip
+\textbf{Dlaczego $e^x$, a~nie inna funkcja?}
+Bo $e^x$ jest \textit{jedyną} funkcją, która spełnia jednocześnie:
+\begin{enumerate}[leftmargin=2em]
+  \item Zawiera wszystkie potęgi $x^n$ w~szeregu Taylora.
+  \item Ma proste współczynniki ($1/n!$), które łatwo odwrócić
+        różniczkowaniem.
+  \item Jest swoją własną pochodną: $(e^x)' = e^x$ ---
+        dlatego różniczkowanie po $t$ ``wyciąga'' kolejne momenty.
+\end{enumerate}
+Żadna inna funkcja nie ma tych trzech własności jednocześnie.
+\end{tcolorbox}
+
+\textbf{Problem z~MGF:} Ta całka $\int e^{tx} p(x)\,dx$ może \textbf{nie istnieć}
 (być nieskończona)! Np.\ dla rozkładu Cauchy'ego $e^{tx}$ rośnie tak szybko,
 że całka wybucha do $\infty$ dla każdego $t \neq 0$.
+
+Potrzebujemy czegoś, co ma te same zalety co $e^{tX}$
+(wszystkie momenty w~jednej funkcji), ale \textbf{zawsze istnieje}.
 
 \medskip
 \textbf{Próba 3 (sukces!): Wstawiamy $i$ --- $\mathbb{E}[e^{itX}]$}
@@ -1559,11 +1798,73 @@ to tak zwana \textbf{funkcja tworząca momenty} (moment generating function, MGF
 Rozwiązanie: zamiast $e^{tX}$ (rzeczywista eksponenta, która rośnie do~$\infty$),
 bierzemy $e^{itX}$ (zespolona eksponenta = \textbf{obrót po okręgu}).
 
-Dlaczego to pomaga?
+Dlaczego to pomaga? Zobaczmy szereg Taylora.
+W~MGF mieliśmy $e^{tX}$ z~podstawieniem $x = tX$:
+\[
+e^{tX} = 1 + tX + \frac{t^2 X^2}{2!} + \frac{t^3 X^3}{3!} + \cdots
+\]
+Teraz robimy to samo, ale z~$x = itX$ (wstawiamy $i$):
+\[
+e^{itX} = 1 + (it)X + \frac{(it)^2 X^2}{2!} + \frac{(it)^3 X^3}{3!}
++ \frac{(it)^4 X^4}{4!} + \cdots
+\]
+
+Obliczamy potęgi $(it)^n$, korzystając z~cyklu potęg $i$
+(z~Elementu~3: $i^0\!=\!1,\; i^1\!=\!i,\; i^2\!=\!-1,\; i^3\!=\!-i,\; i^4\!=\!1,\;\ldots$):
+\begin{align*}
+e^{itX} &= 1 + it\,X + \frac{(it)^2}{2!}X^2 + \frac{(it)^3}{3!}X^3
++ \frac{(it)^4}{4!}X^4 + \cdots \\[4pt]
+&= 1 + it\,X
+\underbrace{- \frac{t^2}{2!}X^2}_{i^2 = -1}
+\underbrace{- \frac{it^3}{3!}X^3}_{i^3 = -i}
+\underbrace{+ \frac{t^4}{4!}X^4}_{i^4 = +1}
++ \cdots
+\end{align*}
+
+Teraz bierzemy wartość oczekiwaną $\mathbb{E}[\ldots]$:
+\[
+\varphi(t) = \mathbb{E}[e^{itX}]
+= 1 + it\,m_1 - \frac{t^2}{2!}\,m_2 - \frac{it^3}{3!}\,m_3
++ \frac{t^4}{4!}\,m_4 + \cdots
+\]
+gdzie $m_n = \mathbb{E}[X^n]$ to $n$-ty moment (tak jak w~MGF!).
+
+\begin{tcolorbox}[colback=green!5, colframe=green!60!black, breakable,
+  title={Porównanie: MGF vs CF --- te same momenty, inne współczynniki}]
+
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{l l l}
+\toprule
+\textbf{Wyraz} & \textbf{MGF} $M(t) = \mathbb{E}[e^{tX}]$
+  & \textbf{CF} $\varphi(t) = \mathbb{E}[e^{itX}]$ \\
+\midrule
+$n = 0$ & $1$ & $1$ \\
+$n = 1$ & $+\;t\,m_1$ & $+\;it\,m_1$ \\
+$n = 2$ & $+\;\frac{t^2}{2!}\,m_2$ & $-\;\frac{t^2}{2!}\,m_2$ \\
+$n = 3$ & $+\;\frac{t^3}{3!}\,m_3$ & $-\;\frac{it^3}{3!}\,m_3$ \\
+$n = 4$ & $+\;\frac{t^4}{4!}\,m_4$ & $+\;\frac{t^4}{4!}\,m_4$ \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\textbf{Obserwacja:} CF zawiera \textit{dokładnie te same momenty} $m_n$ co MGF!
+Jedyna różnica to czynniki $i^n$ (naprzemienne znaki i~czynniki $i$),
+które nie zmieniają \textit{informacji}, a~jedynie ``owijają'' wartości na okrąg
+zamiast pozwalać im rosnąć do~$\infty$.
+
+\textbf{Kluczowy zysk:} Każdy wyraz CF ma moduł:
+\[
+\left|\frac{(it)^n}{n!}X^n\right| = \frac{|t|^n}{n!}|X|^n
+\]
+Nie ma tu $e^{tX}$, które \textit{eksploduje} --- czynnik $i^n$ ma moduł $|i^n| = 1$,
+więc nic nie wybucha.
+\end{tcolorbox}
+
+\textbf{Podsumowując:}
 \begin{itemize}[leftmargin=2em]
-  \item $e^{tX}$ rośnie \textbf{bez granic} gdy $X$ jest duże
+  \item $e^{tX}$ (MGF) rośnie \textbf{bez granic} gdy $X$ jest duże
         --- całka może nie istnieć.
-  \item $e^{itX} = \cos(tX) + i\sin(tX)$ --- moduł jest \textbf{zawsze~1},
+  \item $e^{itX}$ (CF) $= \cos(tX) + i\sin(tX)$ --- moduł jest \textbf{zawsze~1},
         bo $|\cos\theta + i\sin\theta| = 1$. Nigdy nie wybucha!
 \end{itemize}
 
@@ -1580,13 +1881,135 @@ Dlatego $\mathbb{E}[e^{itX}]$ istnieje \textbf{dla każdego rozkładu} ---
 nawet takiego, który nie ma średniej ani wariancji.
 \end{tcolorbox}
 
-\textbf{A~ponadto:} można udowodnić (twierdzenie inwersji), że CF
-jednoznacznie identyfikuje rozkład:
+\textbf{A~ponadto:} CF jednoznacznie identyfikuje rozkład --- można z~niej
+\textit{odzyskać} gęstość $p(x)$. Gwarantuje to twierdzenie inwersji.
+
+%% --- Twierdzenie inwersji ---
+\begin{tcolorbox}[colback=violet!5, colframe=violet!70!black, breakable,
+  title={Twierdzenie inwersji Lévy'ego (Paul Lévy, 1925)}]
+
+\textbf{Twierdzenie:} Jeśli zmienna losowa $X$ ma gęstość $p(x)$
+i~funkcję charakterystyczną $\varphi_X(t) = \mathbb{E}[e^{itX}]$, to:
+\begin{equation}
+p(x) = \frac{1}{2\pi}\int_{-\infty}^{\infty} e^{-itx}\,\varphi_X(t)\,dt
+\label{eq:inversion}
+\end{equation}
+
+\textbf{Słownie:} Znając CF $\varphi_X(t)$, możemy \textbf{odtworzyć} gęstość $p(x)$
+--- wystarczy scałkować $e^{-itx}\,\varphi_X(t)$ po wszystkich częstotliwościach~$t$.
+\end{tcolorbox}
+
+\textbf{Skąd ten wzór?} Wyprowadźmy go krok po kroku.
+
+\medskip
+\textbf{Krok 1.} Zapiszmy, co stoi pod całką w~(\ref{eq:inversion}).
+Wstawiamy definicję CF: $\varphi_X(t) = \int e^{ity}\,p(y)\,dy$
+(używamy $y$ zamiast $x$, żeby nie mylić zmiennych):
+\[
+\frac{1}{2\pi}\int_{-\infty}^{\infty} e^{-itx}\,
+\underbrace{\varphi_X(t)}_{=\,\int e^{ity} p(y)\,dy}\,dt
+= \frac{1}{2\pi}\int_{-\infty}^{\infty}\!\int_{-\infty}^{\infty}
+e^{-itx}\,e^{ity}\,p(y)\,dy\,dt
+\]
+
+\textbf{Krok 2.} Łączymy wykładniki ($e^{-itx}\cdot e^{ity} = e^{it(y-x)}$):
+\[
+= \frac{1}{2\pi}\int_{-\infty}^{\infty}\!\int_{-\infty}^{\infty}
+e^{it(y-x)}\,p(y)\,dy\,dt
+\]
+
+\textbf{Krok 3.} Zamieniamy kolejność całkowania
+(najpierw po~$t$, potem po~$y$):
+\[
+= \int_{-\infty}^{\infty} p(y) \underbrace{\left[\frac{1}{2\pi}
+\int_{-\infty}^{\infty} e^{it(y-x)}\,dt\right]}_{\text{co to jest?}}\,dy
+\]
+
+\textbf{Krok 4.} Kluczowy fakt --- \textbf{delta Diraca}:
+
+\begin{tcolorbox}[colback=blue!5, colframe=blue!60!black]
+\textbf{Tożsamość Fouriera:}
+\[
+\frac{1}{2\pi}\int_{-\infty}^{\infty} e^{it\alpha}\,dt = \delta(\alpha)
+\]
+gdzie $\delta(\alpha)$ to \textbf{delta Diraca} --- ``funkcja'', która:
+\begin{itemize}[leftmargin=2em]
+  \item jest równa $0$ wszędzie, gdzie $\alpha \neq 0$,
+  \item jest ``nieskończenie wysoka'' w~$\alpha = 0$,
+  \item ma pole pod krzywą równe~$1$: $\int_{-\infty}^{\infty}\delta(\alpha)\,d\alpha = 1$.
+\end{itemize}
+\textbf{Kluczowa własność} (``sito''):
+$\int f(\alpha)\,\delta(\alpha - a)\,d\alpha = f(a)$
+
+Delta ``wyciąga'' wartość funkcji w~jednym punkcie.
+\end{tcolorbox}
+
+W~naszym przypadku $\alpha = y - x$:
+\[
+\frac{1}{2\pi}\int_{-\infty}^{\infty} e^{it(y-x)}\,dt = \delta(y - x)
+\]
+
+\textbf{Krok 5.} Wstawiamy deltę:
+\[
+\int_{-\infty}^{\infty} p(y)\,\delta(y - x)\,dy
+= p(x) \qquad\checkmark
+\]
+Delta ``wybrała'' z~całki dokładnie $y = x$ i~zostawiła $p(x)$.
+
+\begin{tcolorbox}[colback=green!5, colframe=green!60!black]
+\textbf{Podsumowanie wyprowadzenia:}
+\[
+\frac{1}{2\pi}\int e^{-itx}\,\varphi_X(t)\,dt
+\;\xrightarrow{\text{wstaw definicję CF}}\;
+\int p(y)\underbrace{\frac{1}{2\pi}\int e^{it(y-x)}dt}_{\delta(y-x)}\,dy
+\;\xrightarrow{\text{delta Diraca}}\;
+p(x)
+\]
+\end{tcolorbox}
+
+\medskip
+\textbf{Dlaczego to jest ważne?}
+
+\begin{tcolorbox}[colback=orange!5, colframe=orange!70!black, breakable,
+  title={Konsekwencje twierdzenia inwersji}]
+
+\textbf{1. Jednoznaczność:} Jeśli dwa rozkłady mają tę samą CF,
+to z~(\ref{eq:inversion}) mają tę samą gęstość:
 \[
 \varphi_X(t) = \varphi_Y(t) \;\;\forall\, t
-\qquad\Longleftrightarrow\qquad
-X \text{ i } Y \text{ mają ten sam rozkład}
+\qquad\Longrightarrow\qquad
+p_X(x) = p_Y(x) \;\;\forall\, x
+\qquad\Longrightarrow\qquad
+X \stackrel{d}{=} Y
 \]
+CF to \textbf{prawdziwy odcisk palca} rozkładu ---
+dwa różne rozkłady nie mogą mieć tej samej CF.
+
+\medskip
+\textbf{2. CF $\leftrightarrow$ gęstość to para transformacji Fouriera:}
+\[
+\underbrace{p(x) \;\xrightarrow{\text{transformata Fouriera}}\; \varphi(t)}_{\text{CF: ``kodujemy'' rozkład}}
+\qquad\qquad
+\underbrace{\varphi(t) \;\xrightarrow{\text{odwrotna transf.\ Fouriera}}\; p(x)}_{\text{inwersja: ``dekodujemy'' rozkład}}
+\]
+Przejście w~jedną stronę:
+$\varphi(t) = \int e^{itx}\,p(x)\,dx$ \quad(definicja CF)
+
+Przejście w~drugą stronę:
+$p(x) = \frac{1}{2\pi}\int e^{-itx}\,\varphi(t)\,dt$ \quad(tw.\ inwersji)
+
+\medskip
+\textbf{3. Analogia z~muzyką:}
+\begin{itemize}[leftmargin=2em]
+  \item $p(x)$ to ``przebieg czasowy'' dźwięku (amplituda w~czasie).
+  \item $\varphi(t)$ to ``widmo częstotliwościowe'' (jakie częstotliwości zawiera dźwięk).
+  \item Transformata Fouriera: nagranie $\to$ widmo.
+  \item Odwrotna transformata: widmo $\to$ nagranie.
+  \item Te dwie reprezentacje zawierają \textbf{tę samą informację} ---
+        można przechodzić między nimi bez straty.
+\end{itemize}
+\end{tcolorbox}
+
 To jest silniejsze niż momenty --- CF to \textit{prawdziwy} odcisk palca rozkładu.
 
 \begin{tcolorbox}[colback=yellow!5, colframe=yellow!70!black,
@@ -1660,6 +2083,95 @@ punktów na okręgu $e^{itx}$, gdzie wagami jest prawdopodobieństwo $p(x)$.''
 
 \end{tcolorbox}
 
+\begin{tcolorbox}[colback=orange!5, colframe=orange!70!black, breakable,
+  title={Co oznacza ``częstotliwość'' $t$ w~funkcji charakterystycznej?}]
+
+W~codziennym życiu \textbf{częstotliwość} to ile razy coś się powtarza
+w~jednostce czasu --- np.\ fala dźwiękowa 440~Hz to 440~drgań na sekundę.
+
+W~CF rola $t$ jest analogiczna, ale zamiast czasu mamy \textbf{oś wartości} $x$.
+Przypomnijmy: $e^{itx} = \cos(tx) + i\sin(tx)$.
+
+\textbf{Co robi $t$?} Kontroluje, \textit{jak szybko} funkcje $\cos$ i~$\sin$
+oscylują, gdy przesuwamy się po osi~$x$:
+
+\begin{center}
+\begin{tikzpicture}[scale=0.75, >=stealth]
+  % t = 0.5 (wolna oscylacja)
+  \begin{scope}[shift={(-5.5,0)}]
+    \draw[->] (-3.2,0) -- (3.5,0) node[right] {\small$x$};
+    \draw[->] (0,-1.4) -- (0,1.6);
+    \draw[thick, lejepaBlue, domain=-3:3, samples=80]
+      plot (\x, {cos(0.5*\x r)});
+    \node[above] at (0,1.6) {\small$\cos(0{,}5\cdot x)$};
+    \node[below] at (0,-1.7) {\small$t = 0{,}5$ (wolna)};
+  \end{scope}
+  % t = 2 (średnia oscylacja)
+  \begin{scope}[shift={(0,0)}]
+    \draw[->] (-3.2,0) -- (3.5,0) node[right] {\small$x$};
+    \draw[->] (0,-1.4) -- (0,1.6);
+    \draw[thick, lejepaRed, domain=-3:3, samples=80]
+      plot (\x, {cos(2*\x r)});
+    \node[above] at (0,1.6) {\small$\cos(2x)$};
+    \node[below] at (0,-1.7) {\small$t = 2$ (średnia)};
+  \end{scope}
+  % t = 6 (szybka oscylacja)
+  \begin{scope}[shift={(5.5,0)}]
+    \draw[->] (-3.2,0) -- (3.5,0) node[right] {\small$x$};
+    \draw[->] (0,-1.4) -- (0,1.6);
+    \draw[thick, lejepaGreen!70!black, domain=-3:3, samples=120]
+      plot (\x, {cos(6*\x r)});
+    \node[above] at (0,1.6) {\small$\cos(6x)$};
+    \node[below] at (0,-1.7) {\small$t = 6$ (szybka)};
+  \end{scope}
+\end{tikzpicture}
+\end{center}
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Małe $t$} (lewa fala) --- wolna oscylacja, szerokie ``góry i~doliny''.
+    Takie $t$ wyczuwa \textbf{grube cechy} rozkładu
+    (np.\ ``czy dane są skupione, czy rozrzucone?'').
+  \item \textbf{Średnie $t$} (środkowa fala) --- umiarkowana oscylacja.
+    Wyczuwa \textbf{średnie cechy} (np.\ ``czy rozkład jest symetryczny?'').
+  \item \textbf{Duże $t$} (prawa fala) --- szybka oscylacja, gęste ``fale''.
+    Wyczuwa \textbf{drobne szczegóły} rozkładu
+    (np.\ ``czy ma ostre krawędzie?'').
+\end{itemize}
+
+\medskip
+\textbf{Analogia:} Wyobraź sobie, że badasz teren wzrokiem:
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Małe $t$} $=$ patrzysz z~daleka (z~samolotu) ---
+    widzisz góry i~doliny, ale nie drzewa.
+  \item \textbf{Średnie $t$} $=$ patrzysz z~wieży ---
+    widzisz domy, drogi, lasy.
+  \item \textbf{Duże $t$} $=$ patrzysz przez lupę ---
+    widzisz drobne kamyki, ale tracisz obraz całości.
+\end{itemize}
+
+\textbf{CF skanuje rozkład na wszystkich ``powiększeniach'' naraz} ---
+dla każdego $t$ dostajemy jedną liczbę $\varphi(t)$,
+a~razem tworzą one kompletny portret rozkładu.
+
+\medskip
+\textbf{Uwaga:} $t$ \textit{nie jest} częstotliwością w~sensie fizycznym (Hz).
+To parametr matematyczny, ale zachowuje się analogicznie:
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{l l}
+\toprule
+\textbf{Akustyka} & \textbf{Funkcja charakterystyczna} \\
+\midrule
+częstotliwość dźwięku [Hz] & parametr $t$ \\
+przebieg czasowy sygnału & gęstość $p(x)$ \\
+widmo (FFT) & CF $\varphi(t)$ \\
+niskie tony (bas) & małe $|t|$ --- grube cechy \\
+wysokie tony (sopran) & duże $|t|$ --- drobne szczegóły \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{tcolorbox}
+
 \textbf{Kluczowe własności CF} (dlaczego jest tak użyteczna):
 \begin{enumerate}[leftmargin=2em]
   \item \textbf{Jednoznaczność:} Dwa rozkłady są identyczne
@@ -1678,9 +2190,23 @@ mieszaninę częstotliwości. Funkcja charakterystyczna robi to samo z~rozkłade
 prawdopodobieństwa: ``rozkłada'' go na częstotliwości.
 Różne rozkłady dają różne ``dźwięki''.
 
-\begin{tcolorbox}[colback=yellow!5, colframe=yellow!70!black,
+\begin{tcolorbox}[colback=yellow!5, colframe=yellow!70!black, breakable,
   title={Przykład: CF dla rzutu monetą}]
-Rzut monetą: $X = -1$ (orzeł) z~prawdopodobieństwem $\frac{1}{2}$,
+
+Żeby użyć CF, musimy przypisać wynikowi rzutu monetą \textbf{liczbę} ---
+bo $e^{itX}$ wymaga, żeby $X$ było liczbą, a~nie napisem ``orzeł''/``reszka''.
+
+\textbf{Jak przypisać?} Wybieramy \textit{dowolne} dwie liczby ---
+ale $-1$ i~$+1$ to naturalny wybór, bo:
+\begin{itemize}[leftmargin=2em]
+  \item Są \textbf{symetryczne} wokół zera (moneta jest ``fair'').
+  \item Średnia $\mathbb{E}[X] = \frac{1}{2}(-1) + \frac{1}{2}(+1) = 0$
+        --- rozkład wycentrowany.
+  \item Moglibyśmy wybrać np.\ $0$ i~$1$ (jak w~informatyce),
+        ale $-1$ i~$+1$ lepiej oddają symetrię monety.
+\end{itemize}
+
+Zatem: $X = -1$ (orzeł) z~prawdopodobieństwem $\frac{1}{2}$,
 $X = +1$ (reszka) z~prawdopodobieństwem $\frac{1}{2}$.
 \begin{align*}
 \varphi_X(t) &= \mathbb{E}[e^{itX}]
@@ -1688,8 +2214,60 @@ $X = +1$ (reszka) z~prawdopodobieństwem $\frac{1}{2}$.
 &= \tfrac{1}{2}\,e^{-it} + \tfrac{1}{2}\,e^{it}
 = \tfrac{1}{2}\big(\underbrace{e^{-it} + e^{it}}_{= 2\cos t}\big) = \cos t
 \end{align*}
-CF rzutu monetą to po prostu $\cos t$ --- czysta oscylacja!
-Wygląda zupełnie inaczej niż CF Gaussa (który jest $e^{-t^2/2}$, gładki dzwonek).
+CF rzutu monetą (z~kodowaniem $-1/+1$) to po prostu $\cos t$ --- czysta oscylacja!
+
+\medskip
+\textbf{A~gdybyśmy wybrali $0$ i~$1$?} Zobaczmy:
+
+$X = 0$ (orzeł) z~prawdopodobieństwem $\frac{1}{2}$,
+$X = 1$ (reszka) z~prawdopodobieństwem $\frac{1}{2}$.
+\begin{align*}
+\varphi_X(t) &= \mathbb{E}[e^{itX}]
+= \tfrac{1}{2}\,e^{it\cdot 0} + \tfrac{1}{2}\,e^{it\cdot 1} \\
+&= \tfrac{1}{2}\cdot\underbrace{e^{0}}_{=\,1} + \tfrac{1}{2}\,e^{it}
+= \tfrac{1}{2} + \tfrac{1}{2}\,e^{it}
+= \tfrac{1}{2}\big(1 + e^{it}\big)
+\end{align*}
+
+Korzystając ze wzoru Eulera: $e^{it} = \cos t + i\sin t$:
+\[
+\varphi_X(t) = \tfrac{1}{2}(1 + \cos t + i\sin t)
+= \underbrace{\tfrac{1}{2}(1 + \cos t)}_{\text{część rzeczywista}}
++ \underbrace{\tfrac{1}{2}\sin t}_{\text{część urojona}}\cdot i
+\]
+
+\medskip
+\textbf{Porównanie dwóch kodowań:}
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{l c c}
+\toprule
+& \textbf{Kodowanie $-1/+1$} & \textbf{Kodowanie $0/1$} \\
+\midrule
+CF & $\cos t$ & $\frac{1}{2}(1 + e^{it})$ \\
+Postać & czysto rzeczywista & zespolona (ma część urojoną!) \\
+$\varphi(0)$ & $1$ & $1$ \\
+Symetria & symetryczna ($\varphi(t) = \varphi(-t)$) & niesymetryczna \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+CF z~kodowaniem $-1/+1$ jest prostsza (czysto rzeczywista, symetryczna),
+bo rozkład jest wycentrowany w~zerze ($\mathbb{E}[X] = 0$).
+CF z~kodowaniem $0/1$ jest zespolona, bo rozkład ma niezerową
+średnią ($\mathbb{E}[X] = \frac{1}{2}$).
+
+Oba kodowania opisują ten sam eksperyment (rzut monetą) ---
+różnią się tylko ``przesunięciem'' na osi liczbowej.
+
+\medskip
+\textbf{Uwaga:} Obie CF oscylują! W~kodowaniu $-1/+1$ mamy $\cos t$,
+w~kodowaniu $0/1$ mamy $\frac{1}{2}(1 + \cos t)$ i~$\frac{1}{2}\sin t$ ---
+wszędzie pojawiają się $\cos$ i~$\sin$, czyli oscylacje.
+To nie przypadek: \textbf{rozkład dyskretny} (skończona liczba wartości,
+tu: dwie) \textit{zawsze} daje oscylującą CF.
+Dla porównania, Gauss $\mathcal{N}(0,1)$ --- rozkład ciągły ---
+ma CF $e^{-t^2/2}$, która \textit{nie} oscyluje, tylko gładko opada do zera.
 \end{tcolorbox}
 
 %% ----- Element 8: CF standardowego Gaussa -----
@@ -1775,10 +2353,82 @@ skraca się z~$1/\sqrt{2\pi}$:
 To znaczy, że Gauss $\mathcal{N}(0,1)$ jest ``gładki'' i~nie ma ostrych krawędzi
 (wysokie częstotliwości są tłumione).
 
+Zobaczmy, jak wyglądają CF różnych rozkładów na jednym wykresie:
+
+\begin{center}
+\begin{tikzpicture}[scale=0.95, >=stealth]
+  % Osie
+  \draw[->] (-5.5,0) -- (5.8,0) node[right] {$t$ (częstotliwość)};
+  \draw[->] (0,-1.8) -- (0,2.5) node[above] {$\varphi(t)$};
+  % Skala na osi Y
+  \node[left] at (0,2) {\small$1$};
+  \draw[gray, thin] (-0.1,2) -- (0.1,2);
+  \node[left] at (0,-1.2) {\small$-0{,}6$};
+  % Skala na osi X
+  \foreach \x in {-4,-2,2,4} {
+    \draw[gray, thin] (\x,-0.1) -- (\x,0.1);
+    \node[below] at (\x,-0.15) {\small$\x$};
+  }
+  % --- CF Gaussa: e^{-t^2/2} --- (zawsze >= 0, gładki dzwonek)
+  \draw[very thick, lejepaBlue, domain=-5.3:5.3, samples=100]
+    plot (\x, {2*exp(-0.5*\x*\x)});
+  \node[lejepaBlue, right] at (2.5,1.4)
+    {$e^{-t^2/2}$ --- \textbf{Gauss} $\mathcal{N}(0,1)$};
+  % --- CF monety (-1/+1): cos(t) --- (oscyluje)
+  \draw[very thick, lejepaRed, domain=-5.3:5.3, samples=120]
+    plot (\x, {2*cos(\x r)});
+  \node[lejepaRed, right, text width=4cm] at (2.5,-1.5)
+    {$\cos t$ --- \textbf{moneta} $\{-1,+1\}$};
+  % --- CF rozkładu jednostajnego [-1,1]: sin(t)/t ---
+  \draw[very thick, lejepaGreen!70!black, domain=-5.3:-0.05, samples=100]
+    plot (\x, {2*sin(\x r)/\x});
+  \draw[very thick, lejepaGreen!70!black, domain=0.05:5.3, samples=100]
+    plot (\x, {2*sin(\x r)/\x});
+  \fill[lejepaGreen!70!black] (0,2) circle (2pt); % wartosc w 0
+  \node[lejepaGreen!70!black, left, text width=3.5cm, align=right] at (-2.5,1.5)
+    {$\frac{\sin t}{t}$ --- \textbf{jednostajny} $[-1,1]$};
+  % Linia y=0
+  \draw[gray, thin, dashed] (-5.3,0) -- (5.3,0);
+\end{tikzpicture}
+\end{center}
+
+\begin{tcolorbox}[colback=orange!5, colframe=orange!70!black, breakable,
+  title={Jak czytać ten wykres?}]
+
+Oś pozioma to \textbf{częstotliwość} $t$, oś pionowa to \textbf{wartość CF} $\varphi(t)$.
+Wszystkie CF startują z~$\varphi(0) = 1$ (bo $e^{i \cdot 0 \cdot x} = 1$,
+więc $\mathbb{E}[1] = 1$).
+
+\textbf{Niebieska --- Gauss} $\mathcal{N}(0,1)$: CF $= e^{-t^2/2}$.
+Gładki dzwonek, \textbf{zawsze $\geq 0$}, szybko opada do~zera.
+Nie oscyluje --- bo Gauss jest ``najgładszym'' możliwym rozkładem.
+
+\textbf{Czerwona --- moneta} $\{-1, +1\}$: CF $= \cos t$.
+\textbf{Oscyluje} na zawsze (nigdy nie opada do zera!).
+To dlatego, że moneta ma tylko 2~wartości --- jest ``maksymalnie niegładka''.
+
+\textbf{Zielona --- rozkład jednostajny} $[-1,1]$: CF $= \frac{\sin t}{t}$.
+Oscyluje, ale \textbf{amplituda maleje} --- pośredni przypadek
+między gładkim Gaussem a~``ostrą'' monetą.
+Rozkład jednostajny ma ``ostre krawędzie'' w~$x = \pm 1$,
+co daje wolno gasnące oscylacje w~CF.
+
+\medskip
+\textbf{Reguła ogólna:}
+\begin{itemize}[leftmargin=2em]
+  \item Im \textbf{gładszy} rozkład $p(x)$, tym \textbf{szybciej} opada CF $\varphi(t)$.
+  \item Im \textbf{ostrzejszy} rozkład (krawędzie, skoki), tym \textbf{wolniej} opada CF
+        (i~tym więcej oscylacji).
+\end{itemize}
+To jest dokładna analogia z~akustyką: gładki dźwięk (flet)
+ma mało harmonicznych (szybko gasnące widmo),
+ostry dźwięk (perkusja) ma dużo harmonicznych (wolno gasnące widmo).
+\end{tcolorbox}
+
 \bigskip
 
 \textbf{To jest nasz cel:} chcemy, żeby rzuty embeddingów miały CF
-wyglądającą dokładnie jak $e^{-t^2/2}$.
+wyglądającą dokładnie jak $e^{-t^2/2}$ (niebieska krzywa powyżej).
 
 %% ----- Element 9: Empiryczna CF -----
 \subsubsection{Element 9: Empiryczna CF --- co mamy w~praktyce}
@@ -1854,6 +2504,36 @@ w(t) = e^{-t^2/\sigma^2}
 To Gaussowski ``filtr'' --- dla małych $|t|$ waga jest bliska $1$ (liczymy normalnie),
 dla dużych $|t|$ waga spada do~$0$ (ignorujemy).
 Parametr $\sigma$ kontroluje, jak szybko waga maleje (typowo $\sigma = 1$).
+
+\begin{tcolorbox}[colback=orange!5, colframe=orange!70!black, breakable,
+  title={Uwaga: $\sigma$ w~wadze to \textbf{nie} odchylenie standardowe danych!}]
+
+Wzór $w(t) = e^{-t^2/\sigma^2}$ wygląda jak funkcja Gaussa ---
+i~rzeczywiście \textit{nią jest}, ale w~\textbf{dziedzinie częstotliwości} $t$,
+nie w~dziedzinie danych $x$.
+
+\textbf{Dwa różne $\sigma$:}
+\begin{itemize}[leftmargin=2em]
+  \item $\sigma$ \textbf{danych} (np.\ w~$\mathcal{N}(0,\sigma^2)$) ---
+    odchylenie standardowe rozkładu embeddingów.
+    Mówi, jak szeroko rozrzucone są dane na osi~$x$.
+  \item $\sigma$ \textbf{wagi} (tutaj, w~$w(t) = e^{-t^2/\sigma^2}$) ---
+    parametr \textit{filtra}, który wybieramy my.
+    Mówi, \textbf{jak szeroki zakres częstotliwości} $t$ bierzemy pod uwagę.
+\end{itemize}
+
+\textbf{Intuicja:}
+\begin{itemize}[leftmargin=2em]
+  \item Duże $\sigma$ wagi $\Rightarrow$ filtr opada powoli
+    $\Rightarrow$ uwzględniamy też wysokie częstotliwości (więcej szczegółów).
+  \item Małe $\sigma$ wagi $\Rightarrow$ filtr opada szybko
+    $\Rightarrow$ patrzymy tylko na niskie częstotliwości (grube cechy).
+\end{itemize}
+
+To jest ten sam kształt krzywej ($e^{-(\cdot)^2}$), ale zastosowany
+do zupełnie innej rzeczy --- raz ważymy dane,
+raz ważymy częstotliwości.
+\end{tcolorbox}
 
 %% ----- Element 12: Pełny wzór EP -----
 \subsubsection{Element 12: Pełny wzór testu Eppsa-Pulleya}
